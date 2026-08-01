@@ -5,7 +5,7 @@
 // The preference lives in a plain local state file named "calm" directly under
 // Pi's agent directory (~/.pi/agent by default, PI_CODING_AGENT_DIR when set).
 // That directory is Pi runtime territory: this repository never tracks the
-// state file and Home Manager never manages it. The file contains exactly
+// state file and setup never manages it. The file contains exactly
 // "on\n" or "off\n"; anything else, including a missing or unreadable file,
 // means off.
 

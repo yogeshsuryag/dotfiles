@@ -8,7 +8,7 @@
 # Coverage:
 # - zero coupling: no forbidden identifiers anywhere in the shipped source,
 #   tests, or docs, and the runtime state file is never tracked or managed;
-# - static wiring: Home Manager auto-load, TypeScript typecheck, JS syntax;
+# - static wiring: Windows directory-link auto-load, TypeScript typecheck, JS syntax;
 # - preference: off by default, persisted toggle, malformed/unwritable state;
 # - filtering: the seven built-in tool shells hide gaplessly while custom tools
 #   and unsupported transcript classes stay visible, /export and /share render
@@ -66,7 +66,8 @@ find_chrome() {
     google-chrome-stable \
     chromium \
     chromium-browser \
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    chrome.exe \
+    msedge.exe
   do
     if command -v "$candidate" >/dev/null 2>&1; then
       command -v "$candidate"
@@ -82,9 +83,15 @@ build_node_fixture() {
   local fixture=$1
   mkdir -p "$fixture/calm" "$fixture/node_modules/@earendil-works"
   cp -R "$CALM_DIR/index.ts" "$CALM_DIR/lib" "$fixture/calm/"
-  ln -s "$PI_PACKAGE_DIR" "$fixture/node_modules/@earendil-works/pi-coding-agent"
-  ln -s "$PI_PACKAGE_DIR/node_modules/@earendil-works/pi-tui" "$fixture/node_modules/@earendil-works/pi-tui"
-  ln -s "$PI_PACKAGE_DIR/node_modules/typebox" "$fixture/node_modules/typebox"
+  if ! ln -s "$PI_PACKAGE_DIR" "$fixture/node_modules/@earendil-works/pi-coding-agent" 2>/dev/null; then
+    cp -R "$PI_PACKAGE_DIR" "$fixture/node_modules/@earendil-works/pi-coding-agent"
+  fi
+  if ! ln -s "$PI_PACKAGE_DIR/node_modules/@earendil-works/pi-tui" "$fixture/node_modules/@earendil-works/pi-tui" 2>/dev/null; then
+    cp -R "$PI_PACKAGE_DIR/node_modules/@earendil-works/pi-tui" "$fixture/node_modules/@earendil-works/pi-tui"
+  fi
+  if ! ln -s "$PI_PACKAGE_DIR/node_modules/typebox" "$fixture/node_modules/typebox" 2>/dev/null; then
+    cp -R "$PI_PACKAGE_DIR/node_modules/typebox" "$fixture/node_modules/typebox"
+  fi
   printf '%s\n' '{"type":"module"}' >"$fixture/package.json"
 }
 
@@ -103,7 +110,7 @@ test_zero_coupling_and_state_file() {
   local pat_watch="fm_""watch_arm_pi" pat_op="FIRSTMATE""_OP" pat_dash="fm-""calm"
 
   # The operational marker and upstream runtime surfaces must not exist anywhere.
-  for file in $source_files "$ROOT/tests/pi-calm.test.sh" "$ROOT/tests/lib.sh" "$ROOT/README.md" "$ROOT/home.nix"; do
+  for file in $source_files "$ROOT/tests/pi-calm.test.sh" "$ROOT/tests/lib.sh" "$ROOT/README.md" "$ROOT/home/.bashrc" "$ROOT/windows-common.sh"; do
 
     assert_not_contains "$(cat "$file")" "$pat_fm_home" "$file mentions $pat_fm_home"
     assert_not_contains "$(cat "$file")" "$pat_fm_root" "$file mentions $pat_fm_root"
@@ -115,7 +122,7 @@ test_zero_coupling_and_state_file() {
   done
   # The upstream project name may appear only in a license attribution.
   local attribution_name="First""mate"
-  license_hits=$(grep -rni "$attribution_name" "$CALM_DIR" "$ROOT/README.md" "$ROOT/home.nix" 2>/dev/null | grep -v "Adapted from" || true)
+  license_hits=$(grep -rni "$attribution_name" "$CALM_DIR" "$ROOT/README.md" "$ROOT/home/.bashrc" "$ROOT/windows-common.sh" 2>/dev/null | grep -v "Adapted from" || true)
   [ -z "$license_hits" ] || fail "unexpected upstream references outside license attribution: $license_hits"
   grep -q "MIT License" "$CALM_DIR/LICENSE" || fail "calm LICENSE lost the MIT permission text"
   grep -q "Copyright (c) 2026 Kun Chen" "$CALM_DIR/LICENSE" || fail "calm LICENSE lost the copyright notice"
@@ -123,11 +130,11 @@ test_zero_coupling_and_state_file() {
     grep -q "Copyright (c) 2026 Kun Chen" "$file" || fail "$file lost its copyright attribution header"
   done
 
-  # The runtime preference file must never be tracked or Home Manager managed.
+  # The runtime preference file must never be tracked or setup-managed.
   if git -C "$ROOT" ls-files --error-unmatch home/.pi/agent/calm >/dev/null 2>&1; then
     fail "the Calm state file is tracked in the repository"
   fi
-  assert_not_contains "$(cat "$ROOT/home.nix")" '.pi/agent/calm' "home.nix manages the Calm state file"
+  assert_not_contains "$(cat "$ROOT/windows-links.ps1")" '.pi/agent/calm' "Windows links manage the Calm state file"
   grep -q '^/home/.pi/agent/calm$' "$ROOT/.gitignore" \
     || fail ".gitignore does not guard /home/.pi/agent/calm"
 
@@ -140,12 +147,12 @@ test_zero_coupling_and_state_file() {
 }
 
 test_static_typescript_and_repo_wiring() {
-  # Home Manager links the extensions directory as a whole, so the calm
-  # subdirectory auto-loads without any new declaration.
-  grep -q 'home.file.".pi/agent/extensions".source =' "$ROOT/home.nix" \
-    || fail "home.nix no longer links ~/.pi/agent/extensions as a directory"
-  grep -q "mkOutOfStoreSymlink \"\${dotfiles}/home/.pi/agent/extensions\"" "$ROOT/home.nix" \
-    || fail "home.nix changed the Pi extensions link target"
+  # The Windows link helper links the full extensions directory, so the Calm
+  # subdirectory auto-loads without another declaration.
+  grep -q "home/.pi/agent/extensions" "$ROOT/windows-links.ps1" \
+    || fail "windows-links.ps1 no longer links the Pi extensions directory"
+  grep -q "Join-Path \$PiAgentDir 'extensions'" "$ROOT/windows-links.ps1" \
+    || fail "windows-links.ps1 changed the Pi extensions link target"
   [ -f "$CALM_DIR/index.ts" ] || fail "calm extension entry point missing"
   [ -f "$CALM_DIR/LICENSE" ] || fail "calm license file missing"
 
@@ -183,7 +190,7 @@ JSON
       || fail "Pi Calm extension does not typecheck under strict TypeScript"
   fi
 
-  pass "static wiring: Home Manager auto-load intact, TypeScript typechecks, existing JS extension parses"
+  pass "static wiring: Windows extension link intact, TypeScript typechecks, existing JS extension parses"
 }
 
 test_preference_and_command() {
@@ -288,7 +295,9 @@ expanded = true;
 await calmCommand.handler("", ctx);
 check(visibility.calmPresentationIsActive(), "toggle did not activate Calm");
 check(readFileSync(`${process.env.AGENT_DIR}/calm`, "utf8") === "on\n", "toggle did not persist on");
-check((statSync(`${process.env.AGENT_DIR}/calm`).mode & 0o777) === 0o600, "state file is not owner-only");
+if (process.platform !== "win32") {
+  check((statSync(`${process.env.AGENT_DIR}/calm`).mode & 0o777) === 0o600, "state file is not owner-only");
+}
 check(hiddenThinkingLabel === "", "Calm did not hide the collapsed thinking label");
 check(expanded === true, "toggle changed the Ctrl+O tools-expanded state");
 
@@ -307,26 +316,27 @@ check(hiddenThinkingLabel === undefined, "turning Calm off did not restore the s
 await fire("session_start", { reason: "startup" });
 check(!visibility.calmPresentationIsActive(), "restart did not retain the persisted off choice");
 
-// An unwritable state file fails the toggle with a clear error and leaves the
-// in-memory state untouched, so the failure is loud instead of silently
-// reverting on the next restart.
-process.env.PI_CODING_AGENT_DIR = process.env.READONLY_AGENT_DIR;
-const readonlyPreferencePath = preference.calmPreferencePath();
-chmodSync(process.env.READONLY_AGENT_DIR, 0o555);
-let thrown = "";
-try {
-  await calmCommand.handler("", ctx);
-} catch (error) {
-  thrown = error instanceof Error ? error.message : String(error);
+// POSIX permissions do not provide a reliable unwritable-directory fixture on
+// native Windows, so retain this contract test where chmod is authoritative.
+if (process.platform !== "win32") {
+  process.env.PI_CODING_AGENT_DIR = process.env.READONLY_AGENT_DIR;
+  const readonlyPreferencePath = preference.calmPreferencePath();
+  chmodSync(process.env.READONLY_AGENT_DIR, 0o555);
+  let thrown = "";
+  try {
+    await calmCommand.handler("", ctx);
+  } catch (error) {
+    thrown = error instanceof Error ? error.message : String(error);
+  }
+  chmodSync(process.env.READONLY_AGENT_DIR, 0o755);
+  check(thrown.length > 0, "an unwritable state file did not fail the toggle");
+  check(
+    thrown.includes(readonlyPreferencePath),
+    `toggle error did not name the state path: ${thrown}`,
+  );
+  check(!visibility.calmPresentationIsActive(), "a failed persist changed the in-memory state");
+  check(!existsSync(readonlyPreferencePath), "a failed persist left a state file");
 }
-chmodSync(process.env.READONLY_AGENT_DIR, 0o755);
-check(thrown.length > 0, "an unwritable state file did not fail the toggle");
-check(
-  thrown.includes(readonlyPreferencePath),
-  `toggle error did not name the state path: ${thrown}`,
-);
-check(!visibility.calmPresentationIsActive(), "a failed persist changed the in-memory state");
-check(!existsSync(readonlyPreferencePath), "a failed persist left a state file");
 JS
 )
   status=$?

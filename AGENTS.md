@@ -2,7 +2,11 @@
 
 Deliberate decisions in this repo - do NOT silently revert them:
 
-- `homebrew.onActivation.cleanup = "zap"` in `configuration.nix` is intentional. It forces the good habit of declaring every Homebrew package in the Nix config instead of installing things ad-hoc, which keeps the machine reproducible. Do not soften it to `uninstall` or `none`. Users are warned about its effect in README.md; this note is for anyone tempted to change the setting itself.
+- Windows registry changes are opt-in through `windows-config.env`; do not make
+  them apply by default or hide them inside the normal link step.
+- `windows-config.env` is local and ignored. Keep package lists, paths, and
+  personal settings in that file rather than embedding machine-specific values
+  in tracked source files.
 - Never commit `.no-mistakes/` validation evidence to this public repo. `.no-mistakes/` is gitignored; if a validation pipeline stages evidence into a branch, drop it before merging.
 
 ## Maintaining this file
