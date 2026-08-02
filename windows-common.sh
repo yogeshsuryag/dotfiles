@@ -2,145 +2,13 @@
 # Shared Windows setup functions. Source this from bootstrap.sh or rebuild.sh.
 set -euo pipefail
 
-dotfiles_prompt_value() {
-  local variable_name=$1 label=$2 default_value=$3 answer
-
-  if [ ! -t 0 ]; then
-    echo "Cannot configure $variable_name without an interactive terminal." >&2
-    echo "Copy windows-config.example.env to windows-config.env or rerun from Git Bash." >&2
-    return 1
-  fi
-
-  printf '%s [%s]: ' "$label" "$default_value" >&2
-  IFS= read -r answer || return 1
-  printf -v "$variable_name" '%s' "${answer:-$default_value}"
-}
-
 dotfiles_write_config_value() {
   local variable_name=$1
   printf '%s=%q\n' "$variable_name" "${!variable_name}"
 }
 
-dotfiles_create_config_interactively() {
-  local requested_config=$1
-  local detected_home detected_local_appdata detected_appdata
-  local default_home default_local_appdata default_appdata default_xdg_config_home
-  local default_dotfiles_link default_nvim default_wezterm_dir default_wezterm_file
-  local default_herdr default_claude default_codex default_opencode default_pi
-  local temporary
-
-  detected_home="$(dotfiles_windows_env_path USERPROFILE 2>/dev/null || true)"
-  detected_local_appdata="$(dotfiles_windows_env_path LOCALAPPDATA 2>/dev/null || true)"
-  detected_appdata="$(dotfiles_windows_env_path APPDATA 2>/dev/null || true)"
-  default_home="${DOTFILES_WINDOWS_HOME:-${detected_home:-$HOME}}"
-  default_local_appdata="${DOTFILES_LOCAL_APPDATA:-${detected_local_appdata:-$default_home/AppData/Local}}"
-  default_appdata="${DOTFILES_APPDATA:-${detected_appdata:-$default_home/AppData/Roaming}}"
-  default_xdg_config_home="${DOTFILES_XDG_CONFIG_HOME:-$default_home/.config}"
-  default_dotfiles_link="${DOTFILES_DOTFILES_LINK:-$default_home/.dotfiles}"
-  default_nvim="${DOTFILES_NVIM_CONFIG_DIR:-$default_local_appdata/nvim}"
-  default_wezterm_dir="${DOTFILES_WEZTERM_CONFIG_DIR:-$default_xdg_config_home/wezterm}"
-  default_wezterm_file="${DOTFILES_WEZTERM_CONFIG_FILE:-$default_home/.wezterm.lua}"
-  default_herdr="${DOTFILES_HERDR_CONFIG_DIR:-$default_appdata/herdr}"
-  default_claude="${DOTFILES_CLAUDE_CONFIG_DIR:-$default_home/.claude}"
-  default_codex="${DOTFILES_CODEX_CONFIG_DIR:-$default_home/.codex}"
-  default_opencode="${DOTFILES_OPENCODE_CONFIG_DIR:-$default_xdg_config_home/opencode}"
-  default_pi="${DOTFILES_PI_AGENT_DIR:-$default_home/.pi/agent}"
-
-  echo "==> Configure Windows dotfiles"
-  echo "    Press Enter to accept each default. These values are saved locally in $requested_config."
-  echo ""
-  echo "Scoop and optional installers"
-  dotfiles_prompt_value DOTFILES_INSTALL_SCOOP "DOTFILES_INSTALL_SCOOP (0/1)" "${DOTFILES_INSTALL_SCOOP:-1}"
-  dotfiles_prompt_value DOTFILES_SCOOP_BUCKETS "DOTFILES_SCOOP_BUCKETS (space-separated)" "${DOTFILES_SCOOP_BUCKETS:-extras}"
-  dotfiles_prompt_value DOTFILES_NERD_FONTS_BUCKET_URL "DOTFILES_NERD_FONTS_BUCKET_URL" "${DOTFILES_NERD_FONTS_BUCKET_URL:-https://github.com/matthewjberger/scoop-nerd-fonts}"
-  dotfiles_prompt_value DOTFILES_SCOOP_PACKAGES "DOTFILES_SCOOP_PACKAGES (space-separated)" "${DOTFILES_SCOOP_PACKAGES:-git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF}"
-  dotfiles_prompt_value DOTFILES_UPDATE_SCOOP "DOTFILES_UPDATE_SCOOP (0/1)" "${DOTFILES_UPDATE_SCOOP:-0}"
-  dotfiles_prompt_value DOTFILES_INSTALL_HERDR "DOTFILES_INSTALL_HERDR (0/1)" "${DOTFILES_INSTALL_HERDR:-1}"
-  dotfiles_prompt_value DOTFILES_HERDR_INSTALL_URL "DOTFILES_HERDR_INSTALL_URL" "${DOTFILES_HERDR_INSTALL_URL:-https://herdr.dev/install.ps1}"
-  dotfiles_prompt_value DOTFILES_INSTALL_AGENT_CLIS "DOTFILES_INSTALL_AGENT_CLIS (0/1)" "${DOTFILES_INSTALL_AGENT_CLIS:-0}"
-
-  echo ""
-  echo "Windows paths (Git Bash path format)"
-  dotfiles_prompt_value DOTFILES_WINDOWS_HOME "DOTFILES_WINDOWS_HOME" "$default_home"
-  dotfiles_prompt_value DOTFILES_LOCAL_APPDATA "DOTFILES_LOCAL_APPDATA" "$default_local_appdata"
-  dotfiles_prompt_value DOTFILES_APPDATA "DOTFILES_APPDATA" "$default_appdata"
-  dotfiles_prompt_value DOTFILES_XDG_CONFIG_HOME "DOTFILES_XDG_CONFIG_HOME" "$default_xdg_config_home"
-  dotfiles_prompt_value DOTFILES_DOTFILES_LINK "DOTFILES_DOTFILES_LINK" "$default_dotfiles_link"
-  dotfiles_prompt_value DOTFILES_NVIM_CONFIG_DIR "DOTFILES_NVIM_CONFIG_DIR" "$default_nvim"
-  dotfiles_prompt_value DOTFILES_WEZTERM_CONFIG_DIR "DOTFILES_WEZTERM_CONFIG_DIR" "$default_wezterm_dir"
-  dotfiles_prompt_value DOTFILES_WEZTERM_CONFIG_FILE "DOTFILES_WEZTERM_CONFIG_FILE" "$default_wezterm_file"
-  dotfiles_prompt_value DOTFILES_HERDR_CONFIG_DIR "DOTFILES_HERDR_CONFIG_DIR" "$default_herdr"
-  dotfiles_prompt_value DOTFILES_CLAUDE_CONFIG_DIR "DOTFILES_CLAUDE_CONFIG_DIR" "$default_claude"
-  dotfiles_prompt_value DOTFILES_CODEX_CONFIG_DIR "DOTFILES_CODEX_CONFIG_DIR" "$default_codex"
-  dotfiles_prompt_value DOTFILES_OPENCODE_CONFIG_DIR "DOTFILES_OPENCODE_CONFIG_DIR" "$default_opencode"
-  dotfiles_prompt_value DOTFILES_PI_AGENT_DIR "DOTFILES_PI_AGENT_DIR" "$default_pi"
-
-  echo ""
-  echo "Linking and Git Bash"
-  dotfiles_prompt_value DOTFILES_LINK_MODE "DOTFILES_LINK_MODE (junction/symbolic)" "${DOTFILES_LINK_MODE:-junction}"
-  dotfiles_prompt_value DOTFILES_BACKUP_EXISTING "DOTFILES_BACKUP_EXISTING (0/1)" "${DOTFILES_BACKUP_EXISTING:-1}"
-  dotfiles_prompt_value DOTFILES_INSTALL_BASH_HOOK "DOTFILES_INSTALL_BASH_HOOK (0/1)" "${DOTFILES_INSTALL_BASH_HOOK:-1}"
-  dotfiles_prompt_value DOTFILES_EDITOR "DOTFILES_EDITOR" "${DOTFILES_EDITOR:-nvim}"
-  dotfiles_prompt_value DOTFILES_VISUAL "DOTFILES_VISUAL" "${DOTFILES_VISUAL:-${DOTFILES_EDITOR:-nvim}}"
-
-  echo ""
-  echo "Opt-in Windows settings"
-  dotfiles_prompt_value DOTFILES_APPLY_WINDOWS_SETTINGS "DOTFILES_APPLY_WINDOWS_SETTINGS (0/1)" "${DOTFILES_APPLY_WINDOWS_SETTINGS:-0}"
-  dotfiles_prompt_value DOTFILES_DARK_MODE "DOTFILES_DARK_MODE (0/1)" "${DOTFILES_DARK_MODE:-0}"
-  dotfiles_prompt_value DOTFILES_SHOW_FILE_EXTENSIONS "DOTFILES_SHOW_FILE_EXTENSIONS (0/1)" "${DOTFILES_SHOW_FILE_EXTENSIONS:-0}"
-  dotfiles_prompt_value DOTFILES_SHOW_HIDDEN_FILES "DOTFILES_SHOW_HIDDEN_FILES (0/1)" "${DOTFILES_SHOW_HIDDEN_FILES:-0}"
-  dotfiles_prompt_value DOTFILES_HIDE_DESKTOP_ICONS "DOTFILES_HIDE_DESKTOP_ICONS (0/1)" "${DOTFILES_HIDE_DESKTOP_ICONS:-0}"
-  dotfiles_prompt_value DOTFILES_TASKBAR_AUTO_HIDE "DOTFILES_TASKBAR_AUTO_HIDE (0/1)" "${DOTFILES_TASKBAR_AUTO_HIDE:-0}"
-  dotfiles_prompt_value DOTFILES_KEYBOARD_REPEAT "DOTFILES_KEYBOARD_REPEAT (0/1)" "${DOTFILES_KEYBOARD_REPEAT:-0}"
-  dotfiles_prompt_value DOTFILES_KEYBOARD_DELAY "DOTFILES_KEYBOARD_DELAY (0-3)" "${DOTFILES_KEYBOARD_DELAY:-0}"
-  dotfiles_prompt_value DOTFILES_KEYBOARD_SPEED "DOTFILES_KEYBOARD_SPEED (0-31)" "${DOTFILES_KEYBOARD_SPEED:-31}"
-  dotfiles_prompt_value DOTFILES_RESTART_EXPLORER "DOTFILES_RESTART_EXPLORER (0/1)" "${DOTFILES_RESTART_EXPLORER:-0}"
-
-  mkdir -p "$(dirname "$requested_config")"
-  temporary="${requested_config}.tmp.$$"
-  {
-    printf '# Generated by the dotfiles setup wizard. This file is local and ignored by Git.\n'
-    printf '# Review it before running the setup again.\n\n'
-    dotfiles_write_config_value DOTFILES_INSTALL_SCOOP
-    dotfiles_write_config_value DOTFILES_SCOOP_BUCKETS
-    dotfiles_write_config_value DOTFILES_NERD_FONTS_BUCKET_URL
-    dotfiles_write_config_value DOTFILES_SCOOP_PACKAGES
-    dotfiles_write_config_value DOTFILES_UPDATE_SCOOP
-    dotfiles_write_config_value DOTFILES_INSTALL_HERDR
-    dotfiles_write_config_value DOTFILES_HERDR_INSTALL_URL
-    dotfiles_write_config_value DOTFILES_INSTALL_AGENT_CLIS
-    dotfiles_write_config_value DOTFILES_WINDOWS_HOME
-    dotfiles_write_config_value DOTFILES_LOCAL_APPDATA
-    dotfiles_write_config_value DOTFILES_APPDATA
-    dotfiles_write_config_value DOTFILES_XDG_CONFIG_HOME
-    dotfiles_write_config_value DOTFILES_DOTFILES_LINK
-    dotfiles_write_config_value DOTFILES_NVIM_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_WEZTERM_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_WEZTERM_CONFIG_FILE
-    dotfiles_write_config_value DOTFILES_HERDR_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_CLAUDE_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_CODEX_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_OPENCODE_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_PI_AGENT_DIR
-    dotfiles_write_config_value DOTFILES_LINK_MODE
-    dotfiles_write_config_value DOTFILES_BACKUP_EXISTING
-    dotfiles_write_config_value DOTFILES_INSTALL_BASH_HOOK
-    dotfiles_write_config_value DOTFILES_EDITOR
-    dotfiles_write_config_value DOTFILES_VISUAL
-    dotfiles_write_config_value DOTFILES_APPLY_WINDOWS_SETTINGS
-    dotfiles_write_config_value DOTFILES_DARK_MODE
-    dotfiles_write_config_value DOTFILES_SHOW_FILE_EXTENSIONS
-    dotfiles_write_config_value DOTFILES_SHOW_HIDDEN_FILES
-    dotfiles_write_config_value DOTFILES_HIDE_DESKTOP_ICONS
-    dotfiles_write_config_value DOTFILES_TASKBAR_AUTO_HIDE
-    dotfiles_write_config_value DOTFILES_KEYBOARD_REPEAT
-    dotfiles_write_config_value DOTFILES_KEYBOARD_DELAY
-    dotfiles_write_config_value DOTFILES_KEYBOARD_SPEED
-    dotfiles_write_config_value DOTFILES_RESTART_EXPLORER
-  } > "$temporary"
-  mv -f "$temporary" "$requested_config"
-  echo "==> Saved $requested_config"
-}
+# shellcheck source=windows-config-tui.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/windows-config-tui.sh"
 
 dotfiles_load_config() {
   : "${DOTFILES_ROOT:?DOTFILES_ROOT must be set before loading configuration}"
@@ -164,30 +32,7 @@ dotfiles_load_config() {
   DOTFILES_CONFIG_FILE="$requested_config"
   export DOTFILES_CONFIG_FILE
 
-  DOTFILES_INSTALL_SCOOP="${DOTFILES_INSTALL_SCOOP:-1}"
-  DOTFILES_SCOOP_BUCKETS="${DOTFILES_SCOOP_BUCKETS:-extras}"
-  DOTFILES_NERD_FONTS_BUCKET_URL="${DOTFILES_NERD_FONTS_BUCKET_URL:-https://github.com/matthewjberger/scoop-nerd-fonts}"
-  DOTFILES_SCOOP_PACKAGES="${DOTFILES_SCOOP_PACKAGES:-git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF}"
-  DOTFILES_UPDATE_SCOOP="${DOTFILES_UPDATE_SCOOP:-0}"
-  DOTFILES_INSTALL_HERDR="${DOTFILES_INSTALL_HERDR:-1}"
-  DOTFILES_HERDR_INSTALL_URL="${DOTFILES_HERDR_INSTALL_URL:-https://herdr.dev/install.ps1}"
-  DOTFILES_INSTALL_AGENT_CLIS="${DOTFILES_INSTALL_AGENT_CLIS:-0}"
-  DOTFILES_LINK_MODE="${DOTFILES_LINK_MODE:-junction}"
-  DOTFILES_BACKUP_EXISTING="${DOTFILES_BACKUP_EXISTING:-1}"
-  DOTFILES_DOTFILES_LINK="${DOTFILES_DOTFILES_LINK:-}"
-  DOTFILES_INSTALL_BASH_HOOK="${DOTFILES_INSTALL_BASH_HOOK:-1}"
-  DOTFILES_EDITOR="${DOTFILES_EDITOR:-nvim}"
-  DOTFILES_VISUAL="${DOTFILES_VISUAL:-$DOTFILES_EDITOR}"
-  DOTFILES_APPLY_WINDOWS_SETTINGS="${DOTFILES_APPLY_WINDOWS_SETTINGS:-0}"
-  DOTFILES_DARK_MODE="${DOTFILES_DARK_MODE:-0}"
-  DOTFILES_SHOW_FILE_EXTENSIONS="${DOTFILES_SHOW_FILE_EXTENSIONS:-0}"
-  DOTFILES_SHOW_HIDDEN_FILES="${DOTFILES_SHOW_HIDDEN_FILES:-0}"
-  DOTFILES_HIDE_DESKTOP_ICONS="${DOTFILES_HIDE_DESKTOP_ICONS:-0}"
-  DOTFILES_TASKBAR_AUTO_HIDE="${DOTFILES_TASKBAR_AUTO_HIDE:-0}"
-  DOTFILES_KEYBOARD_REPEAT="${DOTFILES_KEYBOARD_REPEAT:-0}"
-  DOTFILES_KEYBOARD_DELAY="${DOTFILES_KEYBOARD_DELAY:-0}"
-  DOTFILES_KEYBOARD_SPEED="${DOTFILES_KEYBOARD_SPEED:-31}"
-  DOTFILES_RESTART_EXPLORER="${DOTFILES_RESTART_EXPLORER:-0}"
+  dotfiles_apply_config_defaults
 }
 
 dotfiles_require_windows_tools() {

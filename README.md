@@ -17,12 +17,15 @@ Running the bootstrap installs and configures:
 - Claude, Codex, opencode, and Pi configuration files
 - Optional Pi theme, extensions, model overrides, and Calm presentation mode
 
-The setup wizard asks for every supported `DOTFILES_*` variable. Use
-`./bootstrap.sh --configure` or `./rebuild.sh --configure` to review all answers
+The setup wizard opens a keyboard-driven terminal UI instead of asking for raw
+environment variable names. It groups choices into tools, optional installers,
+file locations, shell/link behavior, and Windows settings. Use
+`./bootstrap.sh --configure` or `./rebuild.sh --configure` to review all choices
 again; manual editing of `windows-config.env` is not required.
 
-Agent CLIs are not installed by default. Enable them in `windows-config.env`
-only when you want the bootstrap to run their npm installers.
+Agent CLIs are not installed by default. Select them in the setup UI, or enable
+them in `windows-config.env`, only when you want the bootstrap to run their npm
+installers.
 
 ## Requirements
 
@@ -44,11 +47,14 @@ cd dotfiles
 ./bootstrap.sh
 ```
 
-On the first run, the setup wizard asks for every supported configuration
-variable. Press Enter to accept a default. The answers are saved in the local,
-ignored `windows-config.env` file, and Git Bash paths use forms such as
+On the first run, the setup wizard opens a full-screen terminal UI. Use the
+arrow keys or Tab to move, Space to toggle checkboxes, Enter to edit or select,
+and Shift+Tab to move backward. Press Escape or `q` to cancel. Package choices
+are individual checkboxes, and additional package or bucket names can be typed
+in the custom fields. The answers are saved in the local, ignored
+`windows-config.env` file, and Git Bash paths use forms such as
 `/c/Users/your-name`. Run `./bootstrap.sh --configure` or
-`./rebuild.sh --configure` to run the wizard again.
+`./rebuild.sh --configure` to run the UI again.
 
 `bootstrap.sh` is idempotent. It will:
 
@@ -89,14 +95,17 @@ Run the automatic uninstall from Git Bash:
 The script asks for confirmation, removes only links that resolve back to this
 repository, removes only the managed hook block, and restores the newest
 matching `.dotfiles-backup-*` target when the destination is empty. Use
-`./uninstall.sh --configure` to ask for every configuration variable again,
+`./uninstall.sh --configure` to review configuration in the interactive UI,
 `--keep-backups` to leave backups untouched, or `--yes` after reviewing targets.
 
 The uninstaller does not remove Scoop packages, Herdr, agent CLIs, or registry settings.
 
 ## Configuration variables
 
-The tracked `windows-config.example.env` documents every supported variable.
+The tracked `windows-config.example.env` documents every supported variable for
+manual or non-interactive setup. The interactive UI presents the same values
+with plain-language descriptions and keeps the environment variable names out
+of the selection flow.
 The most useful values are:
 
 - `DOTFILES_SCOOP_PACKAGES` - the Scoop package list
@@ -166,7 +175,7 @@ From Git Bash, run the static checks that do not install packages or modify
 Windows settings:
 
 ```bash
-bash -n bootstrap.sh rebuild.sh windows-common.sh uninstall.sh tests/lib.sh tests/pi-calm.test.sh
+bash -n bootstrap.sh rebuild.sh windows-common.sh windows-config-tui.sh uninstall.sh tests/lib.sh tests/pi-calm.test.sh
 ./bootstrap.sh --check
 ./uninstall.sh --check
 bash tests/windows.test.sh

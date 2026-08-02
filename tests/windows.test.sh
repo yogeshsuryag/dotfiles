@@ -29,7 +29,7 @@ command -v powershell.exe >/dev/null 2>&1 || fail "powershell.exe is unavailable
 
 test_shell_syntax() {
   bash -n "$ROOT/bootstrap.sh" "$ROOT/rebuild.sh" "$ROOT/windows-common.sh" \
-    "$ROOT/uninstall.sh" \
+    "$ROOT/windows-config-tui.sh" "$ROOT/uninstall.sh" \
     "$ROOT/home/.bashrc" "$ROOT/tests/lib.sh" "$ROOT/tests/pi-calm.test.sh" \
     "$ROOT/tests/windows.test.sh"
   pass "Bash scripts parse"
@@ -153,17 +153,125 @@ test_uninstall_check() {
 }
 
 test_config_wizard_coverage() {
-  local variable
+  local variable generated_config rendered_ui
+  generated_config="$TMP_ROOT/generated-windows-config.env"
+  rendered_ui="$TMP_ROOT/rendered-config-ui.txt"
+
+  (
+    export DOTFILES_ROOT="$ROOT"
+    export DOTFILES_CONFIG_FILE="$ROOT/windows-config.example.env"
+    export DOTFILES_SKIP_CONFIG_CREATE=1
+    export DOTFILES_TEST_CONFIG="$generated_config"
+    export DOTFILES_TEST_RENDERED="$rendered_ui"
+    # shellcheck source=../windows-common.sh
+    . "$ROOT/windows-common.sh"
+    dotfiles_load_config
+    dotfiles_tui_initialize_collections
+    DOTFILES_TUI_PACKAGE_SELECTED[0]=0
+    DOTFILES_TUI_CUSTOM_PACKAGES='bat  delta'
+    DOTFILES_TUI_BUCKET_EXTRAS=0
+    DOTFILES_TUI_CUSTOM_BUCKETS='main=https://example.invalid/bucket'
+    dotfiles_tui_commit_collections
+    dotfiles_tui_write_config "$DOTFILES_TEST_CONFIG"
+    DOTFILES_TUI_TTY=/dev/stdout
+    DOTFILES_TUI_BOLD=''
+    DOTFILES_TUI_ACCENT=''
+    DOTFILES_TUI_RESET=''
+    DOTFILES_TUI_PAGE=0
+    DOTFILES_TUI_SELECTED=0
+    dotfiles_tui_load_items
+    rendered_ui_output="$(dotfiles_tui_render_page)"
+    printf '%s' "$rendered_ui_output" > "$DOTFILES_TEST_RENDERED"
+  ) || fail "configuration TUI serialization failed"
+
+  [ -f "$generated_config" ] || fail "configuration TUI did not write a config file"
+  grep -Fq 'Install Scoop' "$rendered_ui" || fail "configuration TUI did not render a human-readable label"
+  grep -Fq 'Windows package manager' "$rendered_ui" || fail "configuration TUI did not render a clear description"
+  grep -Fq 'DOTFILES_INSTALL_SCOOP' "$rendered_ui" && fail "configuration TUI exposed a raw environment variable name"
   while IFS= read -r variable; do
-    grep -Fq "dotfiles_prompt_value $variable " "$ROOT/windows-common.sh" \
-      || fail "config wizard does not prompt for $variable"
-    grep -Fq "dotfiles_write_config_value $variable" "$ROOT/windows-common.sh" \
-      || fail "config wizard does not save $variable"
+    grep -Eq "^${variable}=" "$generated_config" \
+      || fail "configuration TUI did not save $variable"
   done < <(sed -nE 's/^(DOTFILES_[A-Z0-9_]+)=.*/\1/p' "$ROOT/windows-config.example.env")
+  (
+    # shellcheck disable=SC1090
+    . "$generated_config"
+    [ "$DOTFILES_SCOOP_PACKAGES" = 'neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta' ]
+    [ "$DOTFILES_SCOOP_BUCKETS" = 'main=https://example.invalid/bucket' ]
+  ) || fail "package and bucket selections were not serialized correctly"
+  for label in \
+    'Install Scoop' 'Additional Scoop packages' 'Windows home directory' \
+    'Link directories using' 'Apply Windows settings' 'Review your choices'; do
+    grep -Fq "$label" "$ROOT/windows-config-tui.sh" \
+      || fail "configuration TUI is missing the human-readable label: $label"
+  done
+  grep -Fq 'stty -icanon -echo' "$ROOT/windows-config-tui.sh" \
+    || fail "configuration TUI does not configure raw keyboard input"
   grep -Fq -- '--configure' "$ROOT/bootstrap.sh" || fail "bootstrap lacks --configure"
   grep -Fq -- '--configure' "$ROOT/rebuild.sh" || fail "rebuild lacks --configure"
   grep -Fq -- '--configure' "$ROOT/uninstall.sh" || fail "uninstall lacks --configure"
-  pass "Config wizard prompts for and saves every documented variable"
+  pass "Configuration TUI explains choices and saves every documented variable"
+}
+
+test_config_tui_keyboard_flow() {
+  local input_file output_file sequence down enter space tab index
+  input_file="$TMP_ROOT/tui-input"
+  output_file="$TMP_ROOT/tui-output"
+  sequence=''
+  down=$'\033[B'
+  enter=$'\r'
+  space=' '
+  tab=$'\t'
+
+  sequence="${sequence}${space}${space}${tab}${space}"
+  for index in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
+    sequence="${sequence}${down}"
+  done
+  sequence="${sequence}${enter}"
+  sequence="${sequence}${tab}${enter}${tab}${space}"
+  for index in 1 2; do sequence="${sequence}${down}"; done
+  sequence="${sequence}${enter}"
+  for index in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do sequence="${sequence}${down}"; done
+  sequence="${sequence}${enter}"
+  for index in 1 2 3 4 5 6; do sequence="${sequence}${down}"; done
+  sequence="${sequence}${enter}"
+  for index in 1 2 3 4 5 6 7 8 9 10 11; do sequence="${sequence}${down}"; done
+  sequence="${sequence}${enter}${enter}"
+  printf '%s' "$sequence" >"$input_file"
+
+  (
+    export DOTFILES_ROOT="$ROOT"
+    export DOTFILES_CONFIG_FILE="$ROOT/windows-config.example.env"
+    export DOTFILES_SKIP_CONFIG_CREATE=1
+    # shellcheck source=../windows-common.sh
+    . "$ROOT/windows-common.sh"
+    dotfiles_load_config
+    dotfiles_tui_initialize_collections
+    DOTFILES_TUI_TTY="$output_file"
+    DOTFILES_TUI_INPUT="$input_file"
+    DOTFILES_TUI_BOLD=''
+    DOTFILES_TUI_ACCENT=''
+    DOTFILES_TUI_RESET=''
+    exec 9<"$DOTFILES_TUI_INPUT"
+    dotfiles_tui_run_pages
+    dotfiles_tui_commit_collections
+    dotfiles_tui_run_review
+    [ "$DOTFILES_SCOOP_PACKAGES" = 'git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF' ]
+    [ "$DOTFILES_UPDATE_SCOOP" = 1 ]
+    [ "$DOTFILES_INSTALL_AGENT_CLIS" = 1 ]
+    exec 9<&-
+  ) || fail "configuration TUI did not accept arrow and Enter navigation"
+  pass "Configuration TUI accepts arrows, Space, Tab, and Enter navigation"
+}
+
+test_noninteractive_config_refusal() {
+  local config_file="$TMP_ROOT/noninteractive-windows-config.env"
+  if DOTFILES_CONFIG_FILE="$config_file" bash "$ROOT/bootstrap.sh" </dev/null >"$TMP_ROOT/noninteractive.out" 2>&1; then
+    fail "bootstrap unexpectedly configured without a terminal"
+  fi
+  [ ! -e "$config_file" ] || fail "noninteractive bootstrap created a configuration file"
+  grep -Fq 'interactive configuration UI' "$TMP_ROOT/noninteractive.out" \
+    || fail "noninteractive bootstrap did not explain how to configure"
+  pass "Noninteractive setup refuses to create configuration state"
 }
 
 test_script_arguments() {
@@ -224,6 +332,8 @@ test_json_and_status_line
 test_links_and_backups
 test_bootstrap_check
 test_config_wizard_coverage
+test_config_tui_keyboard_flow
+test_noninteractive_config_refusal
 test_script_arguments
 test_bash_hook
 test_settings_noop

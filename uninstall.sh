@@ -15,7 +15,7 @@ usage() {
 Usage: ./uninstall.sh [--check|--configure] [--keep-backups] [--yes]
 
   --check          validate configuration without changing anything
-  --configure      ask for every supported configuration variable
+  --configure      open the interactive configuration UI
   --keep-backups   remove managed links but leave preserved targets in place
   --yes            skip the final confirmation prompt
 USAGE
