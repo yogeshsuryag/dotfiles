@@ -37,7 +37,7 @@ test_shell_syntax() {
 
 test_power_shell_syntax() {
   local script tokens errors script_win
-  for script in "$ROOT/windows-links.ps1" "$ROOT/windows-uninstall.ps1" "$ROOT/windows-settings.ps1"; do
+  for script in "$ROOT"/*.ps1 "$ROOT/tests/windows.test.ps1"; do
     tokens="$(mktemp)"
     errors="$(mktemp)"
     script_win="$(cygpath -w "$script")"
@@ -49,7 +49,19 @@ test_power_shell_syntax() {
     [ ! -s "$errors" ] || fail "PowerShell parser produced errors for $script"
     rm -f "$tokens" "$errors"
   done
-  pass "PowerShell helpers parse"
+  pass "PowerShell scripts parse"
+}
+
+test_native_power_shell_suite() {
+  local output
+  output="$TMP_ROOT/native-powershell.out"
+  MSYS_NO_PATHCONV=1 powershell.exe -NoLogo -NoProfile -NonInteractive \
+    -ExecutionPolicy Bypass -File "$(cygpath -w "$ROOT/tests/windows.test.ps1")" \
+    >"$output" 2>&1 \
+    || fail "native PowerShell test suite failed: $(cat "$output")"
+  grep -Fq 'ok - PowerShell scripts parse under Windows PowerShell' "$output" \
+    || fail "native PowerShell test suite did not run its parser checks"
+  pass "Native PowerShell setup suite passes"
 }
 
 test_json_and_status_line() {
@@ -328,6 +340,7 @@ test_settings_noop() {
 
 test_shell_syntax
 test_power_shell_syntax
+test_native_power_shell_suite
 test_json_and_status_line
 test_links_and_backups
 test_bootstrap_check

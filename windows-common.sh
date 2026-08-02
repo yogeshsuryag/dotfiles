@@ -219,9 +219,10 @@ dotfiles_install_bash_hook() {
 
   local marker_start="# >>> dotfiles managed Git Bash hook >>>"
   local marker_end="# <<< dotfiles managed Git Bash hook <<<"
-  local pi_agent_dir_windows
+  local dotfiles_link_git pi_agent_dir_windows
+  dotfiles_link_git="$(cygpath -u "$DOTFILES_DOTFILES_LINK")"
   pi_agent_dir_windows="$(dotfiles_to_windows_path "$DOTFILES_PI_AGENT_DIR")"
-  local source_line="export DOTFILES_ROOT=\"$DOTFILES_DOTFILES_LINK\" DOTFILES_EDITOR=\"$DOTFILES_EDITOR\" DOTFILES_VISUAL=\"$DOTFILES_VISUAL\" PI_CODING_AGENT_DIR=\"$pi_agent_dir_windows\"; . \"\$DOTFILES_ROOT/home/.bashrc\""
+  local source_line="export DOTFILES_ROOT=\"$dotfiles_link_git\" DOTFILES_EDITOR=\"$DOTFILES_EDITOR\" DOTFILES_VISUAL=\"$DOTFILES_VISUAL\" PI_CODING_AGENT_DIR=\"$pi_agent_dir_windows\"; . \"\$DOTFILES_ROOT/home/.bashrc\""
   local profile file temporary
 
   for profile in "$HOME/.bashrc" "$HOME/.bash_profile"; do
