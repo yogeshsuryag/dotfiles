@@ -13,6 +13,7 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_NERD_FONTS_BUCKET_URL',
     'DOTFILES_SCOOP_PACKAGES',
     'DOTFILES_UPDATE_SCOOP',
+    'DOTFILES_INSTALL_ZSH',
     'DOTFILES_INSTALL_HERDR',
     'DOTFILES_HERDR_INSTALL_URL',
     'DOTFILES_INSTALL_AGENT_CLIS',
@@ -139,6 +140,7 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_NERD_FONTS_BUCKET_URL' 'https://github.com/matthewjberger/scoop-nerd-fonts'
     Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF'
     Set-DotfilesDefault $Config 'DOTFILES_UPDATE_SCOOP' '0'
+    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_HERDR' '1'
     Set-DotfilesDefault $Config 'DOTFILES_HERDR_INSTALL_URL' 'https://herdr.dev/install.ps1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_AGENT_CLIS' '0'
@@ -352,7 +354,7 @@ function Assert-DotfilesConfig {
     }
 
     $booleanKeys = @(
-        'DOTFILES_INSTALL_SCOOP', 'DOTFILES_UPDATE_SCOOP', 'DOTFILES_INSTALL_HERDR',
+        'DOTFILES_INSTALL_SCOOP', 'DOTFILES_UPDATE_SCOOP', 'DOTFILES_INSTALL_ZSH', 'DOTFILES_INSTALL_HERDR',
         'DOTFILES_INSTALL_AGENT_CLIS', 'DOTFILES_BACKUP_EXISTING', 'DOTFILES_INSTALL_BASH_HOOK',
         'DOTFILES_APPLY_WINDOWS_SETTINGS', 'DOTFILES_DARK_MODE', 'DOTFILES_SHOW_FILE_EXTENSIONS',
         'DOTFILES_SHOW_HIDDEN_FILES', 'DOTFILES_HIDE_DESKTOP_ICONS', 'DOTFILES_TASKBAR_AUTO_HIDE',
@@ -486,6 +488,157 @@ function Install-DotfilesPackages {
     Invoke-DotfilesCommand 'scoop' (@('install') + $packages)
 }
 
+function Get-DotfilesMsys2Root {
+    param(
+        [switch] $Required,
+        [AllowNull()] [string] $ScoopRoot
+    )
+
+    $candidates = @()
+    if ($ScoopRoot) {
+        $candidates += Join-Path (ConvertTo-NativePath $ScoopRoot) 'apps/msys2/current'
+    } else {
+        $scoopCommand = Get-Command scoop -ErrorAction SilentlyContinue
+        if ($null -ne $scoopCommand) {
+            $prefixOutput = (& $scoopCommand.Name prefix msys2 2>$null | Out-String).Trim()
+            $prefixExitCode = $LASTEXITCODE
+            if ($prefixExitCode -eq 0 -and $prefixOutput) {
+                $candidates += $prefixOutput
+            }
+        }
+
+        $detectedScoopRoot = if ($env:SCOOP) {
+            ConvertTo-NativePath $env:SCOOP
+        } elseif ($env:USERPROFILE) {
+            Join-Path $env:USERPROFILE 'scoop'
+        } else {
+            $null
+        }
+        if ($detectedScoopRoot) {
+            $candidates += Join-Path $detectedScoopRoot 'apps/msys2/current'
+        }
+    }
+
+    foreach ($candidate in @($candidates | Where-Object { $_ } | Select-Object -Unique)) {
+        try {
+            $root = [System.IO.Path]::GetFullPath((ConvertTo-NativePath ([string] $candidate)))
+        } catch {
+            continue
+        }
+        if ((Test-Path -LiteralPath (Join-Path $root 'msys2_shell.cmd') -PathType Leaf) -and
+            (Test-Path -LiteralPath (Join-Path $root 'usr/bin/bash.exe') -PathType Leaf) -and
+            (Test-Path -LiteralPath (Join-Path $root 'usr/bin/pacman.exe') -PathType Leaf)) {
+            return $root
+        }
+    }
+
+    if ($Required) {
+        throw 'MSYS2 was not discovered through Scoop. Install it with Scoop or set DOTFILES_INSTALL_ZSH=0.'
+    }
+    return $null
+}
+
+function Get-DotfilesMsys2StartupPath {
+    param([Parameter(Mandatory = $true)] [string] $Msys2Root)
+
+    $username = if ($env:USERNAME) { $env:USERNAME } else { [Environment]::UserName }
+    if ([string]::IsNullOrWhiteSpace($username)) {
+        throw 'Unable to determine the Windows user name for the MSYS2 zsh startup file.'
+    }
+    return Join-Path (Join-Path $Msys2Root 'home') (Join-Path $username '.zshrc')
+}
+
+function Invoke-DotfilesMsys2Pacman {
+    param([Parameter(Mandatory = $true)] [string] $Msys2Root)
+
+    $bashPath = Join-Path $Msys2Root 'usr/bin/bash.exe'
+    if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
+        throw "MSYS2 bash was not found: $bashPath"
+    }
+
+    Write-Host '==> Installing or updating MSYS2 zsh with pacman'
+    $previousArgumentConversion = $env:MSYS2_ARG_CONV_EXCL
+    $env:MSYS2_ARG_CONV_EXCL = '*'
+    try {
+        & $bashPath '--login' '-c' 'pacman -S --needed --noconfirm zsh'
+        $exitCode = $LASTEXITCODE
+    } finally {
+        if ($null -eq $previousArgumentConversion) {
+            Remove-Item Env:MSYS2_ARG_CONV_EXCL -ErrorAction SilentlyContinue
+        } else {
+            $env:MSYS2_ARG_CONV_EXCL = $previousArgumentConversion
+        }
+    }
+    if ($exitCode -ne 0) {
+        throw "MSYS2 pacman failed while installing zsh with exit code $exitCode."
+    }
+
+    $zshPath = Join-Path $Msys2Root 'usr/bin/zsh.exe'
+    if (-not (Test-Path -LiteralPath $zshPath -PathType Leaf)) {
+        throw "MSYS2 pacman completed but zsh was not found: $zshPath"
+    }
+}
+
+function Install-DotfilesZshStartup {
+    param(
+        [Parameter(Mandatory = $true)] [hashtable] $Config,
+        [Parameter(Mandatory = $true)] [string] $Msys2Root
+    )
+
+    $target = Get-DotfilesMsys2StartupPath $Msys2Root
+    $content = if (Test-Path -LiteralPath $target -PathType Leaf) { Get-Content -LiteralPath $target -Raw } else { '' }
+    $start = '# >>> dotfiles managed MSYS2 zsh startup >>>'
+    $end = '# <<< dotfiles managed MSYS2 zsh startup <<<'
+    $clean = Remove-DotfilesManagedBlock $content $start $end
+    $dotfilesLink = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_DOTFILES_LINK))
+    $piAgentDir = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_PI_AGENT_DIR))
+    $sourceLine = 'export DOTFILES_ROOT="' + (ConvertTo-BashDoubleQuoted $dotfilesLink) +
+        '" DOTFILES_INSTALL_ZSH="1" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
+        '" DOTFILES_VISUAL="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_VISUAL)) +
+        '" PI_CODING_AGENT_DIR="' + (ConvertTo-BashDoubleQuoted $piAgentDir) +
+        '"; . "$DOTFILES_ROOT/home/.zshrc"'
+    $block = "$start`n$sourceLine`n$end"
+    $newContent = if ($clean) { "$clean`n`n$block`n" } else { "$block`n" }
+    Set-DotfilesTextFile $target $newContent
+}
+
+function Remove-DotfilesZshStartup {
+    param([Parameter(Mandatory = $true)] [string] $Msys2Root)
+
+    $target = Get-DotfilesMsys2StartupPath $Msys2Root
+    if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
+        return
+    }
+    $start = '# >>> dotfiles managed MSYS2 zsh startup >>>'
+    $end = '# <<< dotfiles managed MSYS2 zsh startup <<<'
+    $content = Get-Content -LiteralPath $target -Raw
+    if ($content.IndexOf($start, [System.StringComparison]::Ordinal) -lt 0) {
+        return
+    }
+    $clean = Remove-DotfilesManagedBlock $content $start $end
+    Set-DotfilesTextFile $target (($clean.TrimEnd("`n") + "`n"))
+}
+
+function Install-DotfilesZsh {
+    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+
+    if ([string] $Config.DOTFILES_INSTALL_ZSH -ne '1') {
+        $existingRoot = Get-DotfilesMsys2Root
+        if ($existingRoot) {
+            Remove-DotfilesZshStartup $existingRoot
+        }
+        return
+    }
+
+    Install-DotfilesScoop $Config
+    Write-Host '==> Installing MSYS2 through Scoop'
+    Invoke-DotfilesCommand 'scoop' @('install', 'msys2')
+
+    $msys2Root = Get-DotfilesMsys2Root -Required
+    Invoke-DotfilesMsys2Pacman $msys2Root
+    Install-DotfilesZshStartup $Config $msys2Root
+}
+
 function Install-DotfilesHerdr {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
@@ -543,11 +696,15 @@ function Set-DotfilesTextFile {
 }
 
 function Remove-DotfilesManagedBlock {
-    param([AllowNull()][string] $Content)
+    param(
+        [AllowNull()][string] $Content,
+        [string] $StartMarker = '# >>> dotfiles managed Git Bash hook >>>',
+        [string] $EndMarker = '# <<< dotfiles managed Git Bash hook <<<'
+    )
 
     if ($null -eq $Content) { return '' }
-    $start = '# >>> dotfiles managed Git Bash hook >>>'
-    $end = '# <<< dotfiles managed Git Bash hook <<<'
+    $start = $StartMarker
+    $end = $EndMarker
     if ($Content.IndexOf($start, [System.StringComparison]::Ordinal) -lt 0) {
         return $Content
     }
@@ -572,6 +729,7 @@ function Install-DotfilesBashHook {
     $dotfilesLink = ConvertTo-GitBashPath (ConvertTo-NativePath $Config.DOTFILES_DOTFILES_LINK)
     $piAgentDir = ConvertTo-NativePath $Config.DOTFILES_PI_AGENT_DIR
     $sourceLine = 'export DOTFILES_ROOT="' + (ConvertTo-BashDoubleQuoted $dotfilesLink) +
+        '" DOTFILES_INSTALL_ZSH="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_ZSH)) +
         '" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
         '" DOTFILES_VISUAL="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_VISUAL)) +
         '" PI_CODING_AGENT_DIR="' + (ConvertTo-BashDoubleQuoted $piAgentDir) +

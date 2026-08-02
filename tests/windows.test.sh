@@ -211,7 +211,7 @@ test_config_wizard_coverage() {
     [ "$DOTFILES_SCOOP_BUCKETS" = 'main=https://example.invalid/bucket' ]
   ) || fail "package and bucket selections were not serialized correctly"
   for label in \
-    'Install Scoop' 'Additional Scoop packages' 'Windows home directory' \
+    'Install Scoop' 'Install MSYS2 zsh' 'Additional Scoop packages' 'Windows home directory' \
     'Link directories using' 'Apply Windows settings' 'Review your choices'; do
     grep -Fq "$label" "$ROOT/windows-config-tui.sh" \
       || fail "configuration TUI is missing the human-readable label: $label"
@@ -329,6 +329,48 @@ test_bash_hook() {
   pass "Git Bash hooks are idempotent and honor configured paths"
 }
 
+test_msys2_zsh_setup() {
+  local scoop_root msys2_root startup marker_count found_root
+  scoop_root="$TMP_ROOT/msys2-scoop"
+  msys2_root="$scoop_root/apps/msys2/current"
+  mkdir -p "$msys2_root/usr/bin"
+  touch "$msys2_root/msys2_shell.cmd" "$msys2_root/usr/bin/bash.exe" \
+    "$msys2_root/usr/bin/pacman.exe" "$msys2_root/usr/bin/zsh.exe"
+
+  (
+    export DOTFILES_ROOT="$ROOT"
+    export DOTFILES_WINDOWS_HOME="$TMP_ROOT/windows-home"
+    export DOTFILES_DOTFILES_LINK="$ROOT"
+    export DOTFILES_PI_AGENT_DIR="$TMP_ROOT/windows-home/.pi/agent"
+    export DOTFILES_EDITOR=nvim
+    export DOTFILES_VISUAL=nvim
+    export DOTFILES_INSTALL_ZSH=1
+    export USERNAME=dotfiles-test-user
+    # shellcheck source=../windows-common.sh
+    . "$ROOT/windows-common.sh"
+    found_root="$(dotfiles_find_msys2_root "$scoop_root")"
+    [ "$found_root" = "$msys2_root" ] || exit 1
+    dotfiles_install_zsh_startup "$found_root"
+    dotfiles_install_zsh_startup "$found_root"
+    startup="$(dotfiles_msys2_startup_path "$found_root")"
+    marker_count=$(grep -c '^# >>> dotfiles managed MSYS2 zsh startup >>>$' "$startup")
+    [ "$marker_count" -eq 1 ] || exit 1
+    grep -Fq '. "$DOTFILES_ROOT/home/.zshrc"' "$startup" || exit 1
+    dotfiles_zsh_remove_managed_block "$startup"
+    ! grep -Fq 'dotfiles managed MSYS2 zsh startup' "$startup"
+  ) || fail "MSYS2 discovery and zsh startup helpers failed"
+
+  grep -Fq 'eval "$(starship init zsh)"' "$ROOT/home/.zshrc" \
+    || fail "zsh startup does not initialize Starship"
+  grep -Fq 'msys2_shell.cmd' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not discover msys2_shell.cmd"
+  grep -Fq '"-shell"' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not pass the shell selector"
+  grep -Fq '"zsh"' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not launch zsh"
+  pass "MSYS2 discovery, zsh startup, and WezTerm launch configuration are validated"
+}
+
 test_settings_noop() {
   MSYS_NO_PATHCONV=1 powershell.exe -NoLogo -NoProfile -NonInteractive \
     -ExecutionPolicy Bypass -File "$(cygpath -w "$ROOT/windows-settings.ps1")" \
@@ -349,5 +391,6 @@ test_config_tui_keyboard_flow
 test_noninteractive_config_refusal
 test_script_arguments
 test_bash_hook
+test_msys2_zsh_setup
 test_settings_noop
 test_uninstall_check

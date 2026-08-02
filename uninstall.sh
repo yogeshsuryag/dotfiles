@@ -53,13 +53,13 @@ if [ "$CHECK_ONLY" = "1" ]; then
   exit 0
 fi
 
-echo "This will remove only repository-managed links and the managed Git Bash hook."
+echo "This will remove only repository-managed links, shell startup blocks, and the managed Git Bash hook."
 if [ "$RESTORE_BACKUPS" = "1" ]; then
   echo "Matching .dotfiles-backup-* targets will be restored when the destination is empty."
 else
   echo "Existing .dotfiles-backup-* targets will be left untouched."
 fi
-echo "Registry settings, Scoop packages, Herdr, and agent CLIs will not be uninstalled."
+echo "Registry settings, Scoop packages, MSYS2, zsh, Herdr, and agent CLIs will not be uninstalled."
 
 if [ "$ASSUME_YES" != "1" ]; then
   if [ ! -t 0 ]; then
@@ -116,6 +116,12 @@ dotfiles_remove_bash_hook() {
 }
 
 dotfiles_remove_bash_hook
+
+echo "==> Removing the managed MSYS2 zsh startup block"
+msys2_root="$(dotfiles_find_msys2_root 2>/dev/null || true)"
+if [ -n "$msys2_root" ]; then
+  dotfiles_zsh_remove_managed_block "$(dotfiles_msys2_startup_path "$msys2_root")"
+fi
 
 echo "Windows dotfiles uninstall complete."
 echo "Review any remaining .dotfiles-backup-* paths before deleting them."

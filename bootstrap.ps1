@@ -38,6 +38,7 @@ try {
     Install-DotfilesPackages $config
     Install-DotfilesHerdr $config
     Install-DotfilesAgentClis $config
+    Install-DotfilesZsh $config
 
     Write-Host '==> Installing Git Bash configuration hook'
     Invoke-DotfilesLinks $root $config
@@ -46,6 +47,7 @@ try {
 
     Write-Host '==> Bootstrap complete'
     Write-Host '    Restart Git Bash to load the new shell configuration.'
+    Write-Host '    Restart WezTerm after enabling MSYS2 zsh so it can use the new launcher.'
     Write-Host '    Re-run .\rebuild.ps1 after changing repository files or windows-config.env.'
     exit 0
 } catch {

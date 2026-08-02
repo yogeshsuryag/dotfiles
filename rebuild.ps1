@@ -31,6 +31,7 @@ try {
         exit 0
     }
 
+    Install-DotfilesZsh $config
     Invoke-DotfilesLinks $root $config
     Install-DotfilesBashHook $root $config
     Invoke-DotfilesWindowsSettings $root $config

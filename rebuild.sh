@@ -31,6 +31,7 @@ if [ "$CHECK_ONLY" = "--check" ]; then
   exit 0
 fi
 
+dotfiles_install_zsh
 dotfiles_link_configs
 dotfiles_install_bash_hook
 dotfiles_apply_windows_settings

@@ -183,6 +183,127 @@ dotfiles_install_packages() {
   scoop install $DOTFILES_SCOOP_PACKAGES
 }
 
+dotfiles_find_msys2_root() {
+  local explicit_scoop_root=${1:-} scoop_prefix scoop_root candidate
+  local candidates=()
+
+  if [ -n "$explicit_scoop_root" ]; then
+    candidates+=("$explicit_scoop_root/apps/msys2/current")
+  else
+    if command -v scoop >/dev/null 2>&1; then
+      scoop_prefix="$(scoop prefix msys2 2>/dev/null || true)"
+      if [ -n "$scoop_prefix" ]; then
+        candidates+=("$scoop_prefix")
+      fi
+    fi
+  fi
+
+  scoop_root="${SCOOP:-$DOTFILES_WINDOWS_HOME/scoop}"
+  if [ -n "$explicit_scoop_root" ]; then
+    scoop_root=$explicit_scoop_root
+  fi
+  scoop_root="$(cygpath -u "$scoop_root" 2>/dev/null || printf '%s' "$scoop_root")"
+  candidates+=("$scoop_root/apps/msys2/current")
+
+  for candidate in "${candidates[@]}"; do
+    candidate="$(cygpath -u "$candidate" 2>/dev/null || printf '%s' "$candidate")"
+    if [ -f "$candidate/msys2_shell.cmd" ] && \
+      [ -f "$candidate/usr/bin/bash.exe" ] && \
+      [ -f "$candidate/usr/bin/pacman.exe" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+dotfiles_msys2_startup_path() {
+  local msys2_root=$1 username
+  username="${USERNAME:-$(id -un)}"
+  [ -n "$username" ] || {
+    echo 'Unable to determine the Windows user name for the MSYS2 zsh startup file.' >&2
+    return 1
+  }
+  printf '%s/home/%s/.zshrc' "$msys2_root" "$username"
+}
+
+dotfiles_invoke_msys2_pacman() {
+  local msys2_root=$1 bash_path zsh_path
+  bash_path="$msys2_root/usr/bin/bash.exe"
+  zsh_path="$msys2_root/usr/bin/zsh.exe"
+  [ -f "$bash_path" ] || {
+    echo "MSYS2 bash was not found: $bash_path" >&2
+    return 1
+  }
+
+  echo '==> Installing or updating MSYS2 zsh with pacman'
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
+    "$bash_path" --login -c 'pacman -S --needed --noconfirm zsh'
+  [ -f "$zsh_path" ] || {
+    echo "MSYS2 pacman completed but zsh was not found: $zsh_path" >&2
+    return 1
+  }
+}
+
+dotfiles_zsh_remove_managed_block() {
+  local target=$1 temporary
+  local marker_start="# >>> dotfiles managed MSYS2 zsh startup >>>"
+  local marker_end="# <<< dotfiles managed MSYS2 zsh startup <<<"
+  [ -f "$target" ] || return 0
+  grep -Fqx "$marker_start" "$target" || return 0
+  temporary="${target}.dotfiles.tmp"
+  awk -v start="$marker_start" -v end="$marker_end" '
+    $0 == start { inside = 1; next }
+    $0 == end { inside = 0; next }
+    !inside { print }
+  ' "$target" > "$temporary"
+  mv -f "$temporary" "$target"
+}
+
+dotfiles_install_zsh_startup() {
+  local msys2_root=$1 target temporary source_line
+  local marker_start="# >>> dotfiles managed MSYS2 zsh startup >>>"
+  local marker_end="# <<< dotfiles managed MSYS2 zsh startup <<<"
+  local dotfiles_link_git pi_agent_dir_git
+  target="$(dotfiles_msys2_startup_path "$msys2_root")"
+  mkdir -p "$(dirname "$target")"
+  temporary="${target}.dotfiles.tmp"
+  if [ -f "$target" ]; then
+    dotfiles_zsh_remove_managed_block "$target"
+  fi
+
+  dotfiles_link_git="$(cygpath -u "$DOTFILES_DOTFILES_LINK")"
+  pi_agent_dir_git="$(cygpath -u "$DOTFILES_PI_AGENT_DIR")"
+  printf -v source_line 'export DOTFILES_ROOT=%q DOTFILES_INSTALL_ZSH=%q DOTFILES_EDITOR=%q DOTFILES_VISUAL=%q PI_CODING_AGENT_DIR=%q; . "$DOTFILES_ROOT/home/.zshrc"' \
+    "$dotfiles_link_git" 1 "$DOTFILES_EDITOR" "$DOTFILES_VISUAL" "$pi_agent_dir_git"
+  {
+    if [ -f "$target" ]; then cat "$target"; fi
+    printf '\n%s\n%s\n%s\n' "$marker_start" "$source_line" "$marker_end"
+  } > "$temporary"
+  mv -f "$temporary" "$target"
+}
+
+dotfiles_install_zsh() {
+  local existing_root msys2_root
+  if [ "$DOTFILES_INSTALL_ZSH" != 1 ]; then
+    existing_root="$(dotfiles_find_msys2_root 2>/dev/null || true)"
+    if [ -n "$existing_root" ]; then
+      dotfiles_zsh_remove_managed_block "$(dotfiles_msys2_startup_path "$existing_root")"
+    fi
+    return 0
+  fi
+
+  dotfiles_install_scoop
+  echo '==> Installing MSYS2 through Scoop'
+  scoop install msys2
+  msys2_root="$(dotfiles_find_msys2_root)" || {
+    echo 'MSYS2 was not discovered through Scoop after installation.' >&2
+    return 1
+  }
+  dotfiles_invoke_msys2_pacman "$msys2_root"
+  dotfiles_install_zsh_startup "$msys2_root"
+}
+
 dotfiles_install_herdr() {
   if [ "$DOTFILES_INSTALL_HERDR" != "1" ] || command -v herdr >/dev/null 2>&1; then
     return 0
@@ -222,7 +343,7 @@ dotfiles_install_bash_hook() {
   local dotfiles_link_git pi_agent_dir_windows
   dotfiles_link_git="$(cygpath -u "$DOTFILES_DOTFILES_LINK")"
   pi_agent_dir_windows="$(dotfiles_to_windows_path "$DOTFILES_PI_AGENT_DIR")"
-  local source_line="export DOTFILES_ROOT=\"$dotfiles_link_git\" DOTFILES_EDITOR=\"$DOTFILES_EDITOR\" DOTFILES_VISUAL=\"$DOTFILES_VISUAL\" PI_CODING_AGENT_DIR=\"$pi_agent_dir_windows\"; . \"\$DOTFILES_ROOT/home/.bashrc\""
+  local source_line="export DOTFILES_ROOT=\"$dotfiles_link_git\" DOTFILES_INSTALL_ZSH=\"$DOTFILES_INSTALL_ZSH\" DOTFILES_EDITOR=\"$DOTFILES_EDITOR\" DOTFILES_VISUAL=\"$DOTFILES_VISUAL\" PI_CODING_AGENT_DIR=\"$pi_agent_dir_windows\"; . \"\$DOTFILES_ROOT/home/.bashrc\""
   local profile file temporary
 
   for profile in "$HOME/.bashrc" "$HOME/.bash_profile"; do
@@ -293,7 +414,7 @@ dotfiles_validate_config() {
 
   local variable_name
   for variable_name in \
-    DOTFILES_INSTALL_SCOOP DOTFILES_UPDATE_SCOOP DOTFILES_INSTALL_HERDR \
+    DOTFILES_INSTALL_SCOOP DOTFILES_UPDATE_SCOOP DOTFILES_INSTALL_ZSH DOTFILES_INSTALL_HERDR \
     DOTFILES_INSTALL_AGENT_CLIS DOTFILES_BACKUP_EXISTING DOTFILES_INSTALL_BASH_HOOK \
     DOTFILES_APPLY_WINDOWS_SETTINGS DOTFILES_DARK_MODE DOTFILES_SHOW_FILE_EXTENSIONS \
     DOTFILES_SHOW_HIDDEN_FILES DOTFILES_HIDE_DESKTOP_ICONS DOTFILES_TASKBAR_AUTO_HIDE \

@@ -220,6 +220,29 @@ try {
     Assert-Test ((Get-Content -LiteralPath (Join-Path $hookHome '.bash_profile') -Raw) -match '# user profile') 'PowerShell Git Bash hook removal preserves unmanaged profile content'
     Pass-Test 'PowerShell Git Bash hooks are idempotent and removable'
 
+    $msys2ScoopRoot = Join-Path $testRoot 'msys2-scoop'
+    $msys2Root = Join-Path $msys2ScoopRoot 'apps/msys2/current'
+    New-Item -ItemType Directory -Path (Join-Path $msys2Root 'usr/bin') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $msys2Root 'msys2_shell.cmd') -Value '@echo off' -NoNewline
+    Set-Content -LiteralPath (Join-Path $msys2Root 'usr/bin/bash.exe') -Value 'fixture' -NoNewline
+    Set-Content -LiteralPath (Join-Path $msys2Root 'usr/bin/pacman.exe') -Value 'fixture' -NoNewline
+    Set-Content -LiteralPath (Join-Path $msys2Root 'usr/bin/zsh.exe') -Value 'fixture' -NoNewline
+    $discoveredMsys2Root = Get-DotfilesMsys2Root -ScoopRoot $msys2ScoopRoot
+    Assert-Test ($discoveredMsys2Root -eq [System.IO.Path]::GetFullPath($msys2Root)) 'MSYS2 discovery finds the Scoop app root'
+    $zshConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $zshConfig | Out-Null
+    $zshConfig.DOTFILES_DOTFILES_LINK = $root
+    $zshConfig.DOTFILES_PI_AGENT_DIR = Join-Path $hookHome '.pi/agent'
+    Install-DotfilesZshStartup $zshConfig $discoveredMsys2Root
+    Install-DotfilesZshStartup $zshConfig $discoveredMsys2Root
+    $zshStartup = Get-DotfilesMsys2StartupPath $discoveredMsys2Root
+    $zshStartupContent = Get-Content -LiteralPath $zshStartup -Raw
+    Assert-Test ((@($zshStartupContent -split "`r?`n" | Where-Object { $_ -eq '# >>> dotfiles managed MSYS2 zsh startup >>>' }).Count) -eq 1) 'MSYS2 zsh startup installation is idempotent'
+    Assert-Test ($zshStartupContent -match '\. "\$DOTFILES_ROOT/home/\.zshrc"') 'MSYS2 zsh startup sources the tracked zsh configuration'
+    Remove-DotfilesZshStartup $discoveredMsys2Root
+    Assert-Test ((Get-Content -LiteralPath $zshStartup -Raw) -notmatch 'dotfiles managed MSYS2 zsh startup') 'MSYS2 zsh startup removal removes only the managed block'
+    Pass-Test 'MSYS2 discovery and zsh startup are repeatable and removable'
+
     Write-Host "1..$passed"
 } catch {
     Write-Error "not ok - $($_.Exception.Message)"

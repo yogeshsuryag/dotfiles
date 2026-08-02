@@ -44,13 +44,13 @@ try {
         exit 0
     }
 
-    Write-Host 'This will remove only repository-managed links and the managed Git Bash hook.'
+    Write-Host 'This will remove only repository-managed links, shell startup blocks, and the managed Git Bash hook.'
     if ($restoreBackups -eq '1') {
         Write-Host 'Matching .dotfiles-backup-* targets will be restored when the destination is empty.'
     } else {
         Write-Host 'Existing .dotfiles-backup-* targets will be left untouched.'
     }
-    Write-Host 'Registry settings, Scoop packages, Herdr, and agent CLIs will not be uninstalled.'
+    Write-Host 'Registry settings, Scoop packages, MSYS2, zsh, Herdr, and agent CLIs will not be uninstalled.'
 
     if (-not $assumeYes) {
         if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
@@ -67,6 +67,11 @@ try {
     Invoke-DotfilesUninstallLinks $root $config $restoreBackups
     Write-Host '==> Removing the managed Git Bash hook'
     Remove-DotfilesBashHook $config
+    $msys2Root = Get-DotfilesMsys2Root
+    if ($msys2Root) {
+        Write-Host '==> Removing the managed MSYS2 zsh startup block'
+        Remove-DotfilesZshStartup $msys2Root
+    }
 
     Write-Host 'Windows dotfiles uninstall complete.'
     Write-Host 'Review any remaining .dotfiles-backup-* paths before deleting them.'

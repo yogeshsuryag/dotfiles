@@ -13,6 +13,111 @@ config.window_decorations = "RESIZE"
 local UNFOCUSED_FOREGROUND_TEXT_HSB = { hue = 1.0, saturation = 0.25, brightness = 0.45 }
 local UNFOCUSED_WINDOW_BACKGROUND_OPACITY = 0.62
 
+local function native_path(value)
+	if value == nil or value == "" then
+		return nil
+	end
+
+	local drive, rest = value:match("^/([A-Za-z])/(.*)$")
+	if drive == nil then
+		drive = value:match("^/([A-Za-z])$")
+		rest = ""
+	end
+	if drive ~= nil then
+		rest = rest:gsub("/", "\\")
+		if rest == "" then
+			return drive:upper() .. ":\\"
+		end
+		return drive:upper() .. ":\\" .. rest
+	end
+	return value:gsub("/", "\\")
+end
+
+local function join_path(base, child)
+	if base == nil or base == "" then
+		return nil
+	end
+	local normalized_base = native_path(base)
+	while normalized_base:sub(-1) == "\\" or normalized_base:sub(-1) == "/" do
+		normalized_base = normalized_base:sub(1, -2)
+	end
+	return normalized_base .. "\\" .. child
+end
+
+local function append_unique(paths, value)
+	if value == nil or value == "" then
+		return
+	end
+	for _, existing in ipairs(paths) do
+		if existing == value then
+			return
+		end
+	end
+	table.insert(paths, value)
+end
+
+local function read_config_value(name)
+	local config_paths = {}
+	local config_file = os.getenv("DOTFILES_CONFIG_FILE")
+	local dotfiles_root = os.getenv("DOTFILES_ROOT")
+	local dotfiles_link = os.getenv("DOTFILES_DOTFILES_LINK")
+	append_unique(config_paths, native_path(config_file))
+	append_unique(config_paths, join_path(dotfiles_root, "windows-config.env"))
+	append_unique(config_paths, join_path(dotfiles_link, "windows-config.env"))
+	append_unique(config_paths, join_path(join_path(wezterm.home_dir, ".dotfiles"), "windows-config.env"))
+
+	for _, path in ipairs(config_paths) do
+		local file = io.open(path, "r")
+		if file ~= nil then
+			for line in file:lines() do
+				local value = line:match("^%s*" .. name .. "%s*=%s*(.-)%s*$")
+				if value ~= nil then
+					value = value:match('^"(.*)"$') or value:match("^'(.*)'$") or value
+					file:close()
+					return value
+				end
+			end
+			file:close()
+		end
+	end
+	return os.getenv(name)
+end
+
+local function find_msys2_shell()
+	local candidates = {}
+	local scoop_root = os.getenv("SCOOP")
+	local user_profile = os.getenv("USERPROFILE") or wezterm.home_dir
+	append_unique(candidates, join_path(scoop_root, "apps\\msys2\\current\\msys2_shell.cmd"))
+	append_unique(candidates, join_path(join_path(user_profile, "scoop"), "apps\\msys2\\current\\msys2_shell.cmd"))
+
+	for _, path in ipairs(candidates) do
+		local file = io.open(path, "r")
+		if file ~= nil then
+			file:close()
+			return path
+		end
+	end
+	return nil
+end
+
+if read_config_value("DOTFILES_INSTALL_ZSH") == "1" then
+	local msys2_shell = find_msys2_shell()
+	if msys2_shell ~= nil then
+		config.default_prog = {
+			"cmd.exe",
+			"/d",
+			"/c",
+			msys2_shell,
+			"-defterm",
+			"-here",
+			"-no-start",
+			"-msys",
+			"-shell",
+			"zsh",
+		}
+	end
+end
+
 -- get_config_overrides() hands back a copy, so the current value is never the
 -- same table we last stored; compare the fields instead of the identity.
 local function same_text_hsb(actual, expected)

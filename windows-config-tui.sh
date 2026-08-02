@@ -30,6 +30,7 @@ dotfiles_apply_config_defaults() {
   DOTFILES_INSTALL_HERDR="${DOTFILES_INSTALL_HERDR:-1}"
   DOTFILES_HERDR_INSTALL_URL="${DOTFILES_HERDR_INSTALL_URL:-https://herdr.dev/install.ps1}"
   DOTFILES_INSTALL_AGENT_CLIS="${DOTFILES_INSTALL_AGENT_CLIS:-0}"
+  DOTFILES_INSTALL_ZSH="${DOTFILES_INSTALL_ZSH:-0}"
   DOTFILES_LINK_MODE="${DOTFILES_LINK_MODE:-junction}"
   DOTFILES_BACKUP_EXISTING="${DOTFILES_BACKUP_EXISTING:-1}"
   DOTFILES_INSTALL_BASH_HOOK="${DOTFILES_INSTALL_BASH_HOOK:-1}"
@@ -269,6 +270,7 @@ dotfiles_tui_load_items() {
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_HERDR 'Install Herdr' "Install Herdr's Windows beta using the source below when it is not already available."
       dotfiles_tui_add_item text DOTFILES_HERDR_INSTALL_URL 'Herdr installer source' 'PowerShell installer URL used for the optional Herdr installation.'
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_AGENT_CLIS 'Install optional AI command-line tools' 'Install Claude, Codex, Pi, and opencode with npm. Credentials remain local to each tool.'
+      dotfiles_tui_add_item toggle DOTFILES_INSTALL_ZSH 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and use it in WezTerm without changing Git Bash.'
       dotfiles_tui_add_action back 'Back to tools and packages' 'Return to the previous section without losing these choices.'
       dotfiles_tui_add_action next 'Continue to file locations' 'Open the detected Windows paths and application locations.'
       ;;
@@ -414,9 +416,10 @@ dotfiles_tui_render_summary() {
   printf '  Packages selected: %d\n' "$package_count" > "$DOTFILES_TUI_TTY"
   printf '  Package list: %s\n' "$(dotfiles_tui_clip "${selected_packages:-none}" 68)" > "$DOTFILES_TUI_TTY"
   printf '  Scoop buckets: %s\n' "$(dotfiles_tui_clip "${selected_buckets:-none}" 68)" > "$DOTFILES_TUI_TTY"
-  printf '  Optional installers: Herdr %s, AI tools %s\n' \
+  printf '  Optional installers: Herdr %s, AI tools %s, MSYS2 zsh %s\n' \
     "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_HERDR)" \
-    "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_AGENT_CLIS)" > "$DOTFILES_TUI_TTY"
+    "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_AGENT_CLIS)" \
+    "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_ZSH)" > "$DOTFILES_TUI_TTY"
   printf '  Main home: %s\n' "$(dotfiles_tui_clip "$DOTFILES_WINDOWS_HOME" 68)" > "$DOTFILES_TUI_TTY"
   printf '  Repository link: %s\n' "$(dotfiles_tui_clip "$DOTFILES_DOTFILES_LINK" 68)" > "$DOTFILES_TUI_TTY"
   printf '  Linking: %s, backups %s, Git Bash integration %s\n' \
@@ -700,6 +703,7 @@ dotfiles_tui_write_config() {
     dotfiles_write_config_value DOTFILES_NERD_FONTS_BUCKET_URL
     dotfiles_write_config_value DOTFILES_SCOOP_PACKAGES
     dotfiles_write_config_value DOTFILES_UPDATE_SCOOP
+    dotfiles_write_config_value DOTFILES_INSTALL_ZSH
     dotfiles_write_config_value DOTFILES_INSTALL_HERDR
     dotfiles_write_config_value DOTFILES_HERDR_INSTALL_URL
     dotfiles_write_config_value DOTFILES_INSTALL_AGENT_CLIS

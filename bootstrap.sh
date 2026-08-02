@@ -38,6 +38,7 @@ echo "==> Installing declared tools"
 dotfiles_install_packages
 dotfiles_install_herdr
 dotfiles_install_agent_clis
+dotfiles_install_zsh
 
 echo "==> Installing Git Bash configuration hook"
 dotfiles_link_configs
@@ -46,4 +47,5 @@ dotfiles_apply_windows_settings
 
 echo "==> Bootstrap complete"
 echo "    Restart Git Bash to load the new shell configuration."
+echo "    Restart WezTerm after enabling MSYS2 zsh so it can use the new launcher."
 echo "    Re-run ./rebuild.sh after changing repository files or windows-config.env."

@@ -128,6 +128,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_HERDR' 'Install Herdr' "Install Herdr's Windows beta using the source below when it is not already available."
             Add-DotfilesTuiItem $State 'text' 'DOTFILES_HERDR_INSTALL_URL' 'Herdr installer source' 'PowerShell installer URL used for the optional Herdr installation.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_AGENT_CLIS' 'Install optional AI command-line tools' 'Install Claude, Codex, Pi, and opencode with npm. Credentials remain local to each tool.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_ZSH' 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and use it in WezTerm without changing Git Bash.'
             Add-DotfilesTuiAction $State 'back' 'Back to tools and packages' 'Return to the previous section without losing these choices.'
             Add-DotfilesTuiAction $State 'next' 'Continue to file locations' 'Open the detected Windows paths and application locations.'
         }
@@ -308,6 +309,7 @@ function Write-DotfilesTuiSummary {
     $packageCount = @($packages -split '\s+' | Where-Object { $_ }).Count
     $herdrState = if ([string] $State.Config.DOTFILES_INSTALL_HERDR -eq '1') { 'ON' } else { 'OFF' }
     $agentState = if ([string] $State.Config.DOTFILES_INSTALL_AGENT_CLIS -eq '1') { 'ON' } else { 'OFF' }
+    $zshState = if ([string] $State.Config.DOTFILES_INSTALL_ZSH -eq '1') { 'ON' } else { 'OFF' }
     $backupState = if ([string] $State.Config.DOTFILES_BACKUP_EXISTING -eq '1') { 'ON' } else { 'OFF' }
     $hookState = if ([string] $State.Config.DOTFILES_INSTALL_BASH_HOOK -eq '1') { 'ON' } else { 'OFF' }
     $settingsState = if ([string] $State.Config.DOTFILES_APPLY_WINDOWS_SETTINGS -eq '1') { 'ON' } else { 'OFF' }
@@ -321,7 +323,7 @@ function Write-DotfilesTuiSummary {
     Write-Host ("  Packages selected: {0}" -f $packageCount)
     Write-Host ("  Package list: {0}" -f (Clip-DotfilesTuiValue $packageList 68))
     Write-Host ("  Scoop buckets: {0}" -f (Clip-DotfilesTuiValue $bucketList 68))
-    Write-Host ("  Optional installers: Herdr {0}, AI tools {1}" -f $herdrState, $agentState)
+    Write-Host ("  Optional installers: Herdr {0}, AI tools {1}, MSYS2 zsh {2}" -f $herdrState, $agentState, $zshState)
     Write-Host ("  Main home: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_WINDOWS_HOME 68))
     Write-Host ("  Repository link: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_DOTFILES_LINK 68))
     Write-Host ("  Linking: {0}, backups {1}, Git Bash integration {2}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_LINK_MODE' $State.Config.DOTFILES_LINK_MODE), $backupState, $hookState)
