@@ -17,6 +17,10 @@ Running the bootstrap installs and configures:
 - Claude, Codex, opencode, and Pi configuration files
 - Optional Pi theme, extensions, model overrides, and Calm presentation mode
 
+The setup wizard asks for every supported `DOTFILES_*` variable. Use
+`./bootstrap.sh --configure` or `./rebuild.sh --configure` to review all answers
+again; manual editing of `windows-config.env` is not required.
+
 Agent CLIs are not installed by default. Enable them in `windows-config.env`
 only when you want the bootstrap to run their npm installers.
 
@@ -73,6 +77,22 @@ Edit files under `home/` directly, then re-apply links and optional settings:
 ```
 
 Restart Git Bash after the first bootstrap so the managed shell hook is loaded.
+
+## Uninstall and restore
+
+Run the automatic uninstall from Git Bash:
+
+```bash
+./uninstall.sh
+```
+
+The script asks for confirmation, removes only links that resolve back to this
+repository, removes only the managed hook block, and restores the newest
+matching `.dotfiles-backup-*` target when the destination is empty. Use
+`./uninstall.sh --configure` to ask for every configuration variable again,
+`--keep-backups` to leave backups untouched, or `--yes` after reviewing targets.
+
+The uninstaller does not remove Scoop packages, Herdr, agent CLIs, or registry settings.
 
 ## Configuration variables
 
@@ -146,8 +166,9 @@ From Git Bash, run the static checks that do not install packages or modify
 Windows settings:
 
 ```bash
-bash -n bootstrap.sh rebuild.sh windows-common.sh tests/lib.sh tests/pi-calm.test.sh
+bash -n bootstrap.sh rebuild.sh windows-common.sh uninstall.sh tests/lib.sh tests/pi-calm.test.sh
 ./bootstrap.sh --check
+./uninstall.sh --check
 bash tests/windows.test.sh
 bash tests/pi-calm.test.sh
 ```

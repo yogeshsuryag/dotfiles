@@ -29,6 +29,7 @@ command -v powershell.exe >/dev/null 2>&1 || fail "powershell.exe is unavailable
 
 test_shell_syntax() {
   bash -n "$ROOT/bootstrap.sh" "$ROOT/rebuild.sh" "$ROOT/windows-common.sh" \
+    "$ROOT/uninstall.sh" \
     "$ROOT/home/.bashrc" "$ROOT/tests/lib.sh" "$ROOT/tests/pi-calm.test.sh" \
     "$ROOT/tests/windows.test.sh"
   pass "Bash scripts parse"
@@ -36,7 +37,7 @@ test_shell_syntax() {
 
 test_power_shell_syntax() {
   local script tokens errors script_win
-  for script in "$ROOT/windows-links.ps1" "$ROOT/windows-settings.ps1"; do
+  for script in "$ROOT/windows-links.ps1" "$ROOT/windows-uninstall.ps1" "$ROOT/windows-settings.ps1"; do
     tokens="$(mktemp)"
     errors="$(mktemp)"
     script_win="$(cygpath -w "$script")"
@@ -141,6 +142,16 @@ test_bootstrap_check() {
   pass "Bootstrap and rebuild validate the example configuration"
 }
 
+test_uninstall_check() {
+  local config_existed=0
+  [ -e "$ROOT/windows-config.env" ] && config_existed=1
+  bash "$ROOT/uninstall.sh" --check >/dev/null \
+    || fail "uninstall --check rejected the example configuration"
+  [ "$config_existed" -eq 1 ] || [ ! -e "$ROOT/windows-config.env" ] \
+    || fail "uninstall --check created a local configuration file"
+  pass "Uninstall preflight validates configuration without creating local state"
+}
+
 test_config_wizard_coverage() {
   local variable
   while IFS= read -r variable; do
@@ -151,6 +162,7 @@ test_config_wizard_coverage() {
   done < <(sed -nE 's/^(DOTFILES_[A-Z0-9_]+)=.*/\1/p' "$ROOT/windows-config.example.env")
   grep -Fq -- '--configure' "$ROOT/bootstrap.sh" || fail "bootstrap lacks --configure"
   grep -Fq -- '--configure' "$ROOT/rebuild.sh" || fail "rebuild lacks --configure"
+  grep -Fq -- '--configure' "$ROOT/uninstall.sh" || fail "uninstall lacks --configure"
   pass "Config wizard prompts for and saves every documented variable"
 }
 
@@ -161,7 +173,10 @@ test_script_arguments() {
   if bash "$ROOT/rebuild.sh" --unsupported >/dev/null 2>&1; then
     fail "rebuild accepted an unsupported argument"
   fi
-  pass "Bootstrap and rebuild reject unsupported arguments"
+  if bash "$ROOT/uninstall.sh" --unsupported >/dev/null 2>&1; then
+    fail "uninstall accepted an unsupported argument"
+  fi
+  pass "Bootstrap, rebuild, and uninstall reject unsupported arguments"
 }
 
 test_bash_hook() {
@@ -212,3 +227,4 @@ test_config_wizard_coverage
 test_script_arguments
 test_bash_hook
 test_settings_noop
+test_uninstall_check
