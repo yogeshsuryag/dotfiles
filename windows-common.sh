@@ -76,6 +76,7 @@ dotfiles_setup_paths() {
   DOTFILES_NVIM_CONFIG_DIR="${DOTFILES_NVIM_CONFIG_DIR:-$DOTFILES_LOCAL_APPDATA/nvim}"
   DOTFILES_WEZTERM_CONFIG_DIR="${DOTFILES_WEZTERM_CONFIG_DIR:-$DOTFILES_XDG_CONFIG_HOME/wezterm}"
   DOTFILES_WEZTERM_CONFIG_FILE="${DOTFILES_WEZTERM_CONFIG_FILE:-$DOTFILES_WINDOWS_HOME/.wezterm.lua}"
+  DOTFILES_WEZTERM_THEME="${DOTFILES_WEZTERM_THEME:-Tokyo Night Storm}"
   DOTFILES_HERDR_CONFIG_DIR="${DOTFILES_HERDR_CONFIG_DIR:-$DOTFILES_APPDATA/herdr}"
   DOTFILES_CLAUDE_CONFIG_DIR="${DOTFILES_CLAUDE_CONFIG_DIR:-$DOTFILES_WINDOWS_HOME/.claude}"
   DOTFILES_CODEX_CONFIG_DIR="${DOTFILES_CODEX_CONFIG_DIR:-$DOTFILES_WINDOWS_HOME/.codex}"
@@ -410,6 +411,11 @@ dotfiles_validate_config() {
   case " $valid_link_modes " in
     *" $DOTFILES_LINK_MODE "*) ;;
     *) echo "DOTFILES_LINK_MODE must be junction or symbolic." >&2; return 1 ;;
+  esac
+
+  case "$DOTFILES_WEZTERM_THEME" in
+    'Tokyo Night Storm'|rose-pine-moon) ;;
+    *) echo "DOTFILES_WEZTERM_THEME must be Tokyo Night Storm or rose-pine-moon." >&2; return 1 ;;
   esac
 
   local variable_name

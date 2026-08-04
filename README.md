@@ -10,10 +10,10 @@ Running the bootstrap installs and configures:
 
 - Git for Windows and Git Bash
 - Neovim with the rose-pine moon theme and locked lazy.nvim plugins
-- WezTerm with the rose-pine moon theme
+- WezTerm with selectable Tokyo Night Storm or Rose Pine Moon themes, Windows Acrylic blur, and MSYS2 zsh by default
 - Starship with the shared prompt configuration
 - ripgrep, fd, fzf, jq, lazygit, Node.js, and Hack Nerd Font
-- Optional MSYS2 zsh launched from WezTerm through `msys2_shell.cmd`
+- MSYS2 zsh launched from WezTerm through `msys2_shell.cmd`
 - Herdr's Windows beta installer, unless disabled in the local config
 - Claude, Codex, opencode, and Pi configuration files
 - Optional Pi theme, extensions, model overrides, and Calm presentation mode
@@ -83,7 +83,7 @@ The bootstrap scripts are idempotent. Either frontend will:
 2. Install Scoop for the current user when needed.
 3. Add the configured Scoop buckets and install the configured packages.
 4. Install Herdr's Windows beta through its official installer when enabled.
-5. Install MSYS2 through Scoop and its zsh package through pacman when `DOTFILES_INSTALL_ZSH=1`.
+5. Install MSYS2 through Scoop and its zsh package through pacman when `DOTFILES_INSTALL_ZSH=1` (the default).
 6. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
 7. Create the Windows application links and preserve existing targets as backups.
 8. Apply only the Windows registry settings explicitly enabled in the config.
@@ -117,8 +117,8 @@ From PowerShell, use:
 ```
 
 Restart Git Bash after the first bootstrap so the managed shell hook is loaded.
-When `DOTFILES_INSTALL_ZSH=1`, restart WezTerm after bootstrap so its config can
-launch MSYS2 zsh. Git Bash remains available independently.
+Restart WezTerm after bootstrap so its config can launch MSYS2 zsh. Git Bash
+remains available independently.
 
 ## Uninstall and restore
 
@@ -157,7 +157,8 @@ The most useful values are:
 - `DOTFILES_NERD_FONTS_BUCKET_URL` - the Nerd Fonts bucket source
 - `DOTFILES_INSTALL_HERDR` - enable or disable the Herdr Windows installer
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
-- `DOTFILES_INSTALL_ZSH` - opt in to Scoop MSYS2, pacman zsh, and the WezTerm zsh launcher
+- `DOTFILES_INSTALL_ZSH` - install Scoop MSYS2 and pacman zsh for the WezTerm default shell; enabled by default
+- `DOTFILES_WEZTERM_THEME` - choose `Tokyo Night Storm` (default) or `rose-pine-moon`
 - `DOTFILES_WINDOWS_HOME`, `DOTFILES_LOCAL_APPDATA`, and `DOTFILES_APPDATA` - override detected Windows paths; Git Bash and Windows path forms are accepted
 - `DOTFILES_LINK_MODE` - use junctions for directories and hard links for files by default, or symbolic links for all links
 - `DOTFILES_BACKUP_EXISTING` - preserve real targets before linking
@@ -211,10 +212,10 @@ permissions. Review them before using them.
 ## Neovim and WezTerm
 
 The first Neovim launch clones lazy.nvim and its plugins from GitHub. This needs
-network access once. The terminal and editor use the same rose-pine moon visual
-language and Hack Nerd Font. MSYS2 zsh is disabled by default; when enabled, the
-managed MSYS2 startup file sources `home/.zshrc`, which shares the environment,
-aliases, and Starship initialization with the rest of the setup.
+network access once. WezTerm uses the selected Tokyo Night Storm or Rose Pine
+Moon theme, Windows Acrylic blur, and Hack Nerd Font. MSYS2 zsh is installed by default; its managed startup file
+sources `home/.zshrc`, which shares the environment, aliases, and Starship
+initialization with the rest of the setup.
 
 ## Testing
 
@@ -237,7 +238,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\windows.test.ps1
 
 The PowerShell implementation targets Windows PowerShell 5.1 and avoids
 PowerShell 7-only syntax, so the same suite can also be run with `pwsh`.
-After enabling zsh, validate `home/.zshrc` from the MSYS2 shell with
+After bootstrap, validate `home/.zshrc` from the MSYS2 shell with
 `zsh -n "$DOTFILES_ROOT/home/.zshrc"`; Git Bash intentionally does not use or
 provide the MSYS2 zsh binary.
 

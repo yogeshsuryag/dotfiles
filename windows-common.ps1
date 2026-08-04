@@ -25,6 +25,7 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_NVIM_CONFIG_DIR',
     'DOTFILES_WEZTERM_CONFIG_DIR',
     'DOTFILES_WEZTERM_CONFIG_FILE',
+    'DOTFILES_WEZTERM_THEME',
     'DOTFILES_HERDR_CONFIG_DIR',
     'DOTFILES_CLAUDE_CONFIG_DIR',
     'DOTFILES_CODEX_CONFIG_DIR',
@@ -129,6 +130,7 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_NVIM_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_LOCAL_APPDATA 'nvim')
     Set-DotfilesDefault $Config 'DOTFILES_WEZTERM_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_XDG_CONFIG_HOME 'wezterm')
     Set-DotfilesDefault $Config 'DOTFILES_WEZTERM_CONFIG_FILE' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.wezterm.lua')
+    Set-DotfilesDefault $Config 'DOTFILES_WEZTERM_THEME' 'Tokyo Night Storm'
     Set-DotfilesDefault $Config 'DOTFILES_HERDR_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_APPDATA 'herdr')
     Set-DotfilesDefault $Config 'DOTFILES_CLAUDE_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.claude')
     Set-DotfilesDefault $Config 'DOTFILES_CODEX_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.codex')
@@ -140,7 +142,7 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_NERD_FONTS_BUCKET_URL' 'https://github.com/matthewjberger/scoop-nerd-fonts'
     Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF'
     Set-DotfilesDefault $Config 'DOTFILES_UPDATE_SCOOP' '0'
-    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '0'
+    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_HERDR' '1'
     Set-DotfilesDefault $Config 'DOTFILES_HERDR_INSTALL_URL' 'https://herdr.dev/install.ps1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_AGENT_CLIS' '0'
@@ -351,6 +353,9 @@ function Assert-DotfilesConfig {
 
     if (@('junction', 'symbolic') -notcontains [string] $Config.DOTFILES_LINK_MODE) {
         throw 'DOTFILES_LINK_MODE must be junction or symbolic.'
+    }
+    if (@('Tokyo Night Storm', 'rose-pine-moon') -notcontains [string] $Config.DOTFILES_WEZTERM_THEME) {
+        throw 'DOTFILES_WEZTERM_THEME must be Tokyo Night Storm or rose-pine-moon.'
     }
 
     $booleanKeys = @(

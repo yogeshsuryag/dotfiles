@@ -86,7 +86,7 @@ function Get-DotfilesTuiPageTitle {
 
     switch ($Page) {
         0 { return 'Tools and packages' }
-        1 { return 'Optional installers' }
+        1 { return 'Additional installers' }
         2 { return 'File locations' }
         3 { return 'Shell and links' }
         4 { return 'Windows settings' }
@@ -101,7 +101,7 @@ function Get-DotfilesTuiPageIntro {
         0 { return 'Choose the tools Scoop should install. Space toggles a choice; custom entries stay space-separated.' }
         1 { return 'These installers are optional. URLs are editable so you can review the source before continuing.' }
         2 { return 'Defaults are detected from Windows. Press Enter to edit any path.' }
-        3 { return 'Choose how repository files are linked and which editor commands Git Bash should use.' }
+        3 { return 'Choose the WezTerm theme, link behavior, and which editor commands Git Bash should use.' }
         4 { return 'Registry changes are opt-in. Leave the master switch off to make this section a no-op.' }
         default { return 'Nothing is saved until you choose Save configuration. Go back to adjust any section.' }
     }
@@ -128,7 +128,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_HERDR' 'Install Herdr' "Install Herdr's Windows beta using the source below when it is not already available."
             Add-DotfilesTuiItem $State 'text' 'DOTFILES_HERDR_INSTALL_URL' 'Herdr installer source' 'PowerShell installer URL used for the optional Herdr installation.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_AGENT_CLIS' 'Install optional AI command-line tools' 'Install Claude, Codex, Pi, and opencode with npm. Credentials remain local to each tool.'
-            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_ZSH' 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and use it in WezTerm without changing Git Bash.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_ZSH' 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the WezTerm default shell. Git Bash stays independent.'
             Add-DotfilesTuiAction $State 'back' 'Back to tools and packages' 'Return to the previous section without losing these choices.'
             Add-DotfilesTuiAction $State 'next' 'Continue to file locations' 'Open the detected Windows paths and application locations.'
         }
@@ -150,6 +150,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiAction $State 'next' 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
         }
         3 {
+            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_WEZTERM_THEME' 'WezTerm theme' 'Choose between the Tokyo Night Storm and Rose Pine Moon built-in color schemes.'
             Add-DotfilesTuiItem $State 'choice' 'DOTFILES_LINK_MODE' 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_BACKUP_EXISTING' 'Back up existing files' 'Move real files and directories aside before creating managed links.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_BASH_HOOK' 'Install Git Bash integration' 'Add a managed block to .bashrc and .bash_profile for the repository and editor settings.'
@@ -211,6 +212,8 @@ function Get-DotfilesTuiChoiceLabel {
 
     if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'junction') { return 'Junctions and hard links (recommended)' }
     if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'symbolic') { return 'Symbolic links' }
+    if ($Key -eq 'DOTFILES_WEZTERM_THEME' -and $Value -eq 'Tokyo Night Storm') { return 'Tokyo Night Storm (recommended)' }
+    if ($Key -eq 'DOTFILES_WEZTERM_THEME' -and $Value -eq 'rose-pine-moon') { return 'Rose Pine Moon' }
     return $Value
 }
 
@@ -323,9 +326,10 @@ function Write-DotfilesTuiSummary {
     Write-Host ("  Packages selected: {0}" -f $packageCount)
     Write-Host ("  Package list: {0}" -f (Clip-DotfilesTuiValue $packageList 68))
     Write-Host ("  Scoop buckets: {0}" -f (Clip-DotfilesTuiValue $bucketList 68))
-    Write-Host ("  Optional installers: Herdr {0}, AI tools {1}, MSYS2 zsh {2}" -f $herdrState, $agentState, $zshState)
+    Write-Host ("  Installers: Herdr {0}, AI tools {1}, MSYS2 zsh {2}" -f $herdrState, $agentState, $zshState)
     Write-Host ("  Main home: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_WINDOWS_HOME 68))
     Write-Host ("  Repository link: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_DOTFILES_LINK 68))
+    Write-Host ("  WezTerm theme: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_WEZTERM_THEME' $State.Config.DOTFILES_WEZTERM_THEME))
     Write-Host ("  Linking: {0}, backups {1}, Git Bash integration {2}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_LINK_MODE' $State.Config.DOTFILES_LINK_MODE), $backupState, $hookState)
     Write-Host ("  Windows settings: {0}" -f $settingsState)
     Write-Host ("  Save target: {0}" -f (Clip-DotfilesTuiValue $State.RequestedConfig 68))
@@ -386,7 +390,13 @@ function Toggle-DotfilesTuiItem {
         }
         'package' { $State.PackageSelected[$Item.Key] = -not $State.PackageSelected[$Item.Key] }
         'bucket' { $State.BucketExtras = -not $State.BucketExtras }
-        'choice' { $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'junction') { 'symbolic' } else { 'junction' } }
+        'choice' {
+            if ($Item.Key -eq 'DOTFILES_WEZTERM_THEME') {
+                $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'Tokyo Night Storm') { 'rose-pine-moon' } else { 'Tokyo Night Storm' }
+            } else {
+                $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'junction') { 'symbolic' } else { 'junction' }
+            }
+        }
     }
 }
 

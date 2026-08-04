@@ -109,6 +109,8 @@ try {
     $config = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
     Initialize-DotfilesConfigDefaults $config | Out-Null
     Assert-DotfilesConfig $config
+    Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '1') 'MSYS2 zsh is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_WEZTERM_THEME -eq 'Tokyo Night Storm') 'Tokyo Night Storm is the default WezTerm theme'
     $config.DOTFILES_EDITOR = 'C:\Program Files\Editor\editor.exe "$HOME"'
     $roundTripPath = Join-Path $testRoot 'roundtrip.env'
     Write-DotfilesEnvFile $config $roundTripPath
@@ -154,6 +156,12 @@ try {
     $state.CustomPackages = @('bat', 'delta')
     Sync-DotfilesTuiToConfig $state
     Assert-Test ($stateConfig.DOTFILES_SCOOP_PACKAGES -eq 'neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta') 'PowerShell TUI serializes package choices'
+    $state.Page = 3
+    Set-DotfilesTuiItems $state
+    $themeItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_WEZTERM_THEME' })[0]
+    Assert-Test ($themeItem.Kind -eq 'choice') 'PowerShell TUI exposes the WezTerm theme choice'
+    Toggle-DotfilesTuiItem $state $themeItem
+    Assert-Test ($stateConfig.DOTFILES_WEZTERM_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the WezTerm theme'
     Pass-Test 'PowerShell TUI state covers documented package choices'
 
     $settingsResult = Invoke-NativeScript (Join-Path $root 'windows-settings.ps1') @(

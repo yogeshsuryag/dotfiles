@@ -171,6 +171,11 @@ test_config_wizard_coverage() {
     dotfiles_tui_load_items
     rendered_ui_output="$(dotfiles_tui_render_page)"
     printf '%s' "$rendered_ui_output" > "$DOTFILES_TEST_RENDERED"
+    DOTFILES_TUI_PAGE=3
+    dotfiles_tui_load_items
+    [ "${DOTFILES_TUI_ITEM_KEYS[0]}" = DOTFILES_WEZTERM_THEME ]
+    dotfiles_tui_toggle_item choice DOTFILES_WEZTERM_THEME
+    [ "$DOTFILES_WEZTERM_THEME" = rose-pine-moon ]
   ) || fail "configuration TUI serialization failed"
 
   [ -f "$generated_config" ] || fail "configuration TUI did not write a config file"
@@ -184,17 +189,21 @@ test_config_wizard_coverage() {
   (
     # shellcheck disable=SC1090
     . "$generated_config"
+    [ "$DOTFILES_INSTALL_ZSH" = 1 ]
+    [ "$DOTFILES_WEZTERM_THEME" = 'Tokyo Night Storm' ]
     [ "$DOTFILES_SCOOP_PACKAGES" = 'neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta' ]
     [ "$DOTFILES_SCOOP_BUCKETS" = 'main=https://example.invalid/bucket' ]
   ) || fail "package and bucket selections were not serialized correctly"
   for label in \
     'Install Scoop' 'Install MSYS2 zsh' 'Additional Scoop packages' 'Windows home directory' \
-    'Link repository paths using' 'Apply Windows settings' 'Review your choices'; do
+    'WezTerm theme' 'Link repository paths using' 'Apply Windows settings' 'Review your choices'; do
     grep -Fq "$label" "$ROOT/windows-config-tui.sh" \
       || fail "configuration TUI is missing the human-readable label: $label"
   done
   grep -Fq 'stty -icanon -echo' "$ROOT/windows-config-tui.sh" \
     || fail "configuration TUI does not configure raw keyboard input"
+  grep -Fq 'DOTFILES_WEZTERM_THEME' "$ROOT/windows-config-tui.sh" \
+    || fail "configuration TUI does not expose the WezTerm theme setting"
   grep -Fq -- '--configure' "$ROOT/bootstrap.sh" || fail "bootstrap lacks --configure"
   grep -Fq -- '--configure' "$ROOT/rebuild.sh" || fail "rebuild lacks --configure"
   grep -Fq -- '--configure' "$ROOT/uninstall.sh" || fail "uninstall lacks --configure"
@@ -346,7 +355,17 @@ test_msys2_zsh_setup() {
     || fail "WezTerm config does not pass the shell selector"
   grep -Fq '"zsh"' "$ROOT/home/.config/wezterm/wezterm.lua" \
     || fail "WezTerm config does not launch zsh"
-  pass "MSYS2 discovery, zsh startup, and WezTerm launch configuration are validated"
+  grep -Fq 'read_config_value("DOTFILES_WEZTERM_THEME")' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not read the selected theme"
+  grep -Fq 'read_config_value("DOTFILES_INSTALL_ZSH") ~= "0"' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not honor the zsh opt-out"
+  grep -Fq 'local DEFAULT_WEZTERM_THEME = "Tokyo Night Storm"' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not use Tokyo Night Storm"
+  grep -Fq 'config.win32_system_backdrop = "Acrylic"' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not enable Windows Acrylic blur"
+  grep -Fq 'config.animation_fps = 60' "$ROOT/home/.config/wezterm/wezterm.lua" \
+    || fail "WezTerm config does not enable smooth animation timing"
+  pass "MSYS2 discovery, zsh defaults, and WezTerm visual configuration are validated"
 }
 
 test_settings_noop() {

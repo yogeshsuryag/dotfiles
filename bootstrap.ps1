@@ -47,7 +47,7 @@ try {
 
     Write-Host '==> Bootstrap complete'
     Write-Host '    Restart Git Bash to load the new shell configuration.'
-    Write-Host '    Restart WezTerm after enabling MSYS2 zsh so it can use the new launcher.'
+    Write-Host '    Restart WezTerm so it can use the new MSYS2 zsh default shell.'
     Write-Host '    Re-run .\rebuild.ps1 after changing repository files or windows-config.env.'
     exit 0
 } catch {
