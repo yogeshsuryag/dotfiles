@@ -150,7 +150,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiAction $State 'next' 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
         }
         3 {
-            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_LINK_MODE' 'Link directories using' 'Junctions are the Windows-friendly default; symbolic links require the appropriate privilege.'
+            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_LINK_MODE' 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_BACKUP_EXISTING' 'Back up existing files' 'Move real files and directories aside before creating managed links.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_BASH_HOOK' 'Install Git Bash integration' 'Add a managed block to .bashrc and .bash_profile for the repository and editor settings.'
             Add-DotfilesTuiItem $State 'text' 'DOTFILES_EDITOR' 'Editor command' 'Command used when shell tools open an editor, such as nvim.'
@@ -209,7 +209,7 @@ function Get-DotfilesTuiChoiceLabel {
         [Parameter(Mandatory = $true)] [string] $Value
     )
 
-    if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'junction') { return 'Windows junctions (recommended)' }
+    if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'junction') { return 'Junctions and hard links (recommended)' }
     if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'symbolic') { return 'Symbolic links' }
     return $Value
 }

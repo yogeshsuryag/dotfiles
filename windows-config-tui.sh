@@ -218,7 +218,7 @@ dotfiles_tui_set_text_value() {
 
 dotfiles_tui_choice_label() {
   case "$1:$2" in
-    DOTFILES_LINK_MODE:junction) printf 'Windows junctions (recommended)' ;;
+    DOTFILES_LINK_MODE:junction) printf 'Junctions and hard links (recommended)' ;;
     DOTFILES_LINK_MODE:symbolic) printf 'Symbolic links' ;;
     *) printf '%s' "$2" ;;
   esac
@@ -292,7 +292,7 @@ dotfiles_tui_load_items() {
       dotfiles_tui_add_action next 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
       ;;
     3)
-      dotfiles_tui_add_item choice DOTFILES_LINK_MODE 'Link directories using' 'Junctions are the Windows-friendly default; symbolic links require the appropriate privilege.'
+      dotfiles_tui_add_item choice DOTFILES_LINK_MODE 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
       dotfiles_tui_add_item toggle DOTFILES_BACKUP_EXISTING 'Back up existing files' 'Move real files and directories aside before creating managed links.'
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_BASH_HOOK 'Install Git Bash integration' 'Add a managed block to .bashrc and .bash_profile for the repository and editor settings.'
       dotfiles_tui_add_item text DOTFILES_EDITOR 'Editor command' 'Command used when shell tools open an editor, such as nvim.'

@@ -100,32 +100,9 @@ run_links() {
     -LinkMode junction -BackupExisting 1
 }
 
-symbolic_links_available() {
-  local probe_dir probe_source probe_target
-  probe_dir="$TMP_ROOT/symbolic-link-probe"
-  probe_source="$probe_dir/source.txt"
-  probe_target="$probe_dir/target.txt"
-  mkdir -p "$probe_dir"
-  printf 'probe\n' >"$probe_source"
-  if DOTFILES_LINK_PROBE_TARGET="$(cygpath -w "$probe_target")" \
-    DOTFILES_LINK_PROBE_SOURCE="$(cygpath -w "$probe_source")" \
-    MSYS_NO_PATHCONV=1 powershell.exe -NoLogo -NoProfile -NonInteractive \
-      -Command '$ErrorActionPreference = "Stop"; New-Item -ItemType SymbolicLink -Path $env:DOTFILES_LINK_PROBE_TARGET -Target $env:DOTFILES_LINK_PROBE_SOURCE | Out-Null' \
-      >/dev/null 2>&1; then
-    rm -f "$probe_target"
-    return 0
-  fi
-  return 1
-}
-
 test_links_and_backups() {
   mkdir -p "$TMP_ROOT/user/.claude"
   printf 'pre-existing settings\n' >"$TMP_ROOT/user/.claude/settings.json"
-
-  if ! symbolic_links_available; then
-    echo "skip: Windows symbolic-link privilege is unavailable; enable Developer Mode or run Git Bash elevated for link E2E"
-    return 0
-  fi
 
   run_links >/dev/null
   [ -f "$TMP_ROOT/user/.claude/settings.json" ] || fail "settings link was not created"
@@ -212,7 +189,7 @@ test_config_wizard_coverage() {
   ) || fail "package and bucket selections were not serialized correctly"
   for label in \
     'Install Scoop' 'Install MSYS2 zsh' 'Additional Scoop packages' 'Windows home directory' \
-    'Link directories using' 'Apply Windows settings' 'Review your choices'; do
+    'Link repository paths using' 'Apply Windows settings' 'Review your choices'; do
     grep -Fq "$label" "$ROOT/windows-config-tui.sh" \
       || fail "configuration TUI is missing the human-readable label: $label"
   done
@@ -307,6 +284,7 @@ test_bash_hook() {
   mkdir -p "$hook_link/home"
   cp "$ROOT/home/.bashrc" "$hook_link/home/.bashrc"
   HOME="$hook_home" DOTFILES_WINDOWS_HOME="$TMP_ROOT/windows-home" \
+    DOTFILES_CONFIG_FILE="$ROOT/windows-config.example.env" \
     DOTFILES_DOTFILES_LINK="$hook_link" DOTFILES_TEST_LINK="$hook_link" DOTFILES_SKIP_CONFIG_CREATE=1 \
     DOTFILES_ROOT="$ROOT" bash -c '
     . "$DOTFILES_ROOT/windows-common.sh"

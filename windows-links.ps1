@@ -24,6 +24,41 @@ function Normalize-Path([string] $Path) {
     return [System.IO.Path]::GetFullPath($Path)
 }
 
+function Get-DotfilesHardLinkPaths([string] $Path) {
+    $fsutil = Get-Command 'fsutil.exe' -ErrorAction SilentlyContinue
+    if ($null -eq $fsutil) {
+        return @()
+    }
+
+    $output = @(& $fsutil.Name hardlink list $Path 2>$null)
+    if ($LASTEXITCODE -ne 0) {
+        return @()
+    }
+
+    $paths = @()
+    foreach ($line in $output) {
+        $candidate = ([string] $line).Trim()
+        $candidate = $candidate -replace '^\\\?\?\\', ''
+        if (-not $candidate) {
+            continue
+        }
+        try {
+            $paths += Normalize-Path $candidate
+        } catch {
+            continue
+        }
+    }
+    return @($paths | Select-Object -Unique)
+}
+
+function Test-DotfilesManagedHardLink([string] $Source, [string] $Target, [System.IO.FileSystemInfo] $Item) {
+    if ($Item.PSIsContainer -or (($Item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) {
+        return $false
+    }
+    $expectedSource = Normalize-Path $Source
+    return @(Get-DotfilesHardLinkPaths $Target) -contains $expectedSource
+}
+
 function Ensure-Parent([string] $Path) {
     $parent = Split-Path -Parent $Path
     if ($parent) {
@@ -39,7 +74,7 @@ function Backup-Existing([string] $Target) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $backup = "$Target.dotfiles-backup-$stamp"
     $suffix = 0
-    while (Test-Path -LiteralPath $backup -Force) {
+    while (Test-Path -LiteralPath $backup) {
         $suffix++
         $backup = "$Target.dotfiles-backup-$stamp-$suffix"
     }
@@ -51,7 +86,11 @@ function Remove-Link([System.IO.FileSystemInfo] $Item, [string] $Target) {
     if (($Item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) {
         return $false
     }
-    Remove-Item -LiteralPath $Target -Force
+    if ($Item.PSIsContainer) {
+        [System.IO.Directory]::Delete($Target, $false)
+    } else {
+        [System.IO.File]::Delete($Target)
+    }
     return $true
 }
 
@@ -64,11 +103,21 @@ function New-DotfilesLink([string] $Source, [string] $Target, [ValidateSet('Dire
     $existing = Get-Item -LiteralPath $Target -Force -ErrorAction SilentlyContinue
     if ($null -ne $existing) {
         if (-not (Remove-Link $existing $Target)) {
-            Backup-Existing $Target
+            if ($Kind -eq 'File' -and $LinkMode -eq 'junction' -and (Test-DotfilesManagedHardLink $Source $Target $existing)) {
+                [System.IO.File]::Delete($Target)
+            } else {
+                Backup-Existing $Target
+            }
         }
     }
 
-    $itemType = if ($Kind -eq 'Directory' -and $LinkMode -eq 'junction') { 'Junction' } else { 'SymbolicLink' }
+    $itemType = if ($LinkMode -eq 'symbolic') {
+        'SymbolicLink'
+    } elseif ($Kind -eq 'Directory') {
+        'Junction'
+    } else {
+        'HardLink'
+    }
     New-Item -ItemType $itemType -Path $Target -Target $Source | Out-Null
     Write-Host "$itemType $Target -> $Source"
 }

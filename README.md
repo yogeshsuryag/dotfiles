@@ -35,7 +35,9 @@ installers.
 - Git for Windows with Git Bash
 - Windows PowerShell 5.1 or PowerShell 7 (`pwsh`)
 - Network access for Scoop, package downloads, and Neovim's first plugin sync
-- Windows Developer Mode, or administrator permission, for file symbolic links
+- No elevation is needed for the default junction and hard-link mode when the
+  repository and Windows profile are on the same volume. Symbolic-link mode
+  requires Windows Developer Mode or administrator permission.
 
 Git Bash is required to use the Bash entry point. Install Git for Windows first
 on a new machine, then clone this repository from Git Bash or PowerShell. Scoop
@@ -157,7 +159,7 @@ The most useful values are:
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
 - `DOTFILES_INSTALL_ZSH` - opt in to Scoop MSYS2, pacman zsh, and the WezTerm zsh launcher
 - `DOTFILES_WINDOWS_HOME`, `DOTFILES_LOCAL_APPDATA`, and `DOTFILES_APPDATA` - override detected Windows paths; Git Bash and Windows path forms are accepted
-- `DOTFILES_LINK_MODE` - use `junction` for directories or `symbolic` for all links
+- `DOTFILES_LINK_MODE` - use junctions for directories and hard links for files by default, or symbolic links for all links
 - `DOTFILES_BACKUP_EXISTING` - preserve real targets before linking
 - `DOTFILES_APPLY_WINDOWS_SETTINGS` - master switch for registry changes
 

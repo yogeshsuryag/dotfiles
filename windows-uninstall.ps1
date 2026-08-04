@@ -23,6 +23,41 @@ function Normalize-Path([string] $Path) {
     return [System.IO.Path]::GetFullPath($Path)
 }
 
+function Get-DotfilesHardLinkPaths([string] $Path) {
+    $fsutil = Get-Command 'fsutil.exe' -ErrorAction SilentlyContinue
+    if ($null -eq $fsutil) {
+        return @()
+    }
+
+    $output = @(& $fsutil.Name hardlink list $Path 2>$null)
+    if ($LASTEXITCODE -ne 0) {
+        return @()
+    }
+
+    $paths = @()
+    foreach ($line in $output) {
+        $candidate = ([string] $line).Trim()
+        $candidate = $candidate -replace '^\\\?\?\\', ''
+        if (-not $candidate) {
+            continue
+        }
+        try {
+            $paths += Normalize-Path $candidate
+        } catch {
+            continue
+        }
+    }
+    return @($paths | Select-Object -Unique)
+}
+
+function Is-ManagedHardLink([string] $Source, [string] $Target, [System.IO.FileSystemInfo] $Item) {
+    if ($Item.PSIsContainer -or (($Item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) {
+        return $false
+    }
+    $expectedSource = Normalize-Path $Source
+    return @(Get-DotfilesHardLinkPaths $Target) -contains $expectedSource
+}
+
 function Get-ExistingItem([string] $Path) {
     return Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
 }
@@ -33,7 +68,7 @@ function Is-ReparsePoint([System.IO.FileSystemInfo] $Item) {
 
 function Is-ManagedLink([string] $Source, [string] $Target, [System.IO.FileSystemInfo] $Item) {
     if (-not (Is-ReparsePoint $Item)) {
-        return $false
+        return Is-ManagedHardLink $Source $Target $Item
     }
 
     $expectedSource = Normalize-Path $Source
@@ -98,13 +133,12 @@ function Remove-ManagedLink([string] $Source, [string] $Target) {
         return
     }
 
-    if (-not (Is-ReparsePoint $item)) {
-        Write-Host "Keeping real target: $Target"
-        return
-    }
-
     if (-not (Is-ManagedLink $Source $Target $item)) {
-        Write-Warning "Skipping reparse point that does not resolve to this repository: $Target"
+        if (Is-ReparsePoint $item) {
+            Write-Warning "Skipping reparse point that does not resolve to this repository: $Target"
+        } else {
+            Write-Host "Keeping real target: $Target"
+        }
         return
     }
 

@@ -164,44 +164,35 @@ try {
     Assert-Test ($settingsResult.ExitCode -eq 0) 'disabled Windows settings are a no-op'
     Pass-Test 'Disabled Windows settings make no system changes'
 
-    $probeDirectory = Join-Path $testRoot 'symbolic-link-probe'
-    New-Item -ItemType Directory -Path $probeDirectory -Force | Out-Null
-    $probeSource = Join-Path $probeDirectory 'source.txt'
-    $probeTarget = Join-Path $probeDirectory 'target.txt'
-    Set-Content -LiteralPath $probeSource -Value 'probe' -NoNewline
-    $symbolicLinksAvailable = $true
-    try {
-        New-Item -ItemType SymbolicLink -Path $probeTarget -Target $probeSource -ErrorAction Stop | Out-Null
-        Remove-Item -LiteralPath $probeTarget -Force
-    } catch {
-        $symbolicLinksAvailable = $false
+    $fixture = Join-Path $testRoot 'links'
+    New-Item -ItemType Directory -Path (Join-Path $fixture 'user/.claude') -Force | Out-Null
+    $settingsTarget = Join-Path $fixture 'user/.claude/settings.json'
+    Set-Content -LiteralPath $settingsTarget -Value 'pre-existing settings' -NoNewline
+    $linkScript = Join-Path $root 'windows-links.ps1'
+    $linkArguments = Get-LinkArguments $fixture $root
+    $linkResult = Invoke-NativeScript $linkScript $linkArguments
+    Assert-Test ($linkResult.ExitCode -eq 0) 'Windows link helper created disposable links without elevation'
+    Assert-Test ($linkResult.Output -match 'HardLink') 'Windows link helper used hard links for files by default'
+    Assert-Test (Test-Path -LiteralPath $settingsTarget -PathType Leaf) 'Windows link helper created the settings link'
+    $backupPattern = "$settingsTarget.dotfiles-backup-*"
+    $backupCount = @(Get-ChildItem -Path $backupPattern -Force).Count
+    Assert-Test ($backupCount -eq 1) 'Windows link helper preserved the existing settings file'
+
+    $secondResult = Invoke-NativeScript $linkScript $linkArguments
+    Assert-Test ($secondResult.ExitCode -eq 0) 'Windows link helper reapplied links'
+    Assert-Test (@(Get-ChildItem -Path $backupPattern -Force).Count -eq $backupCount) 'reapplying links did not create an unnecessary backup'
+
+    $uninstallArguments = @()
+    for ($index = 0; $index -lt $linkArguments.Count; $index += 2) {
+        if ($linkArguments[$index] -in @('-LinkMode', '-BackupExisting')) {
+            continue
+        }
+        $uninstallArguments += $linkArguments[$index], $linkArguments[$index + 1]
     }
-
-    if (-not $symbolicLinksAvailable) {
-        Write-Host 'skip: Windows symbolic-link privilege is unavailable; link E2E was not run'
-    } else {
-        $fixture = Join-Path $testRoot 'links'
-        New-Item -ItemType Directory -Path (Join-Path $fixture 'user/.claude') -Force | Out-Null
-        $settingsTarget = Join-Path $fixture 'user/.claude/settings.json'
-        Set-Content -LiteralPath $settingsTarget -Value 'pre-existing settings' -NoNewline
-        $linkScript = Join-Path $root 'windows-links.ps1'
-        $linkArguments = Get-LinkArguments $fixture $root
-        $linkResult = Invoke-NativeScript $linkScript $linkArguments
-        Assert-Test ($linkResult.ExitCode -eq 0) 'Windows link helper created disposable links'
-        Assert-Test (Test-Path -LiteralPath $settingsTarget -PathType Leaf) 'Windows link helper created the settings link'
-        $backupPattern = "$settingsTarget.dotfiles-backup-*"
-        $backupCount = @(Get-ChildItem -Path $backupPattern -Force).Count
-        Assert-Test ($backupCount -eq 1) 'Windows link helper preserved the existing settings file'
-
-        $secondResult = Invoke-NativeScript $linkScript $linkArguments
-        Assert-Test ($secondResult.ExitCode -eq 0) 'Windows link helper reapplied links'
-        Assert-Test (@(Get-ChildItem -Path $backupPattern -Force).Count -eq $backupCount) 'reapplying links did not create an unnecessary backup'
-
-        $uninstallResult = Invoke-NativeScript (Join-Path $root 'windows-uninstall.ps1') ($linkArguments + @('-RestoreBackups', '1'))
-        Assert-Test ($uninstallResult.ExitCode -eq 0) 'Windows uninstall helper removed disposable links'
-        Assert-Test ((Get-Content -LiteralPath $settingsTarget -Raw) -eq 'pre-existing settings') 'Windows uninstall helper restored the preserved settings file'
-        Pass-Test 'Windows links are repeatable, backup-safe, and restorable'
-    }
+    $uninstallResult = Invoke-NativeScript (Join-Path $root 'windows-uninstall.ps1') ($uninstallArguments + @('-RestoreBackups', '1'))
+    Assert-Test ($uninstallResult.ExitCode -eq 0) 'Windows uninstall helper removed disposable links'
+    Assert-Test ((Get-Content -LiteralPath $settingsTarget -Raw) -eq 'pre-existing settings') 'Windows uninstall helper restored the preserved settings file'
+    Pass-Test 'Windows links are repeatable, backup-safe, restorable, and non-elevated'
 
     $hookConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
     Initialize-DotfilesConfigDefaults $hookConfig | Out-Null
