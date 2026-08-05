@@ -74,9 +74,6 @@ dotfiles_setup_paths() {
   DOTFILES_DOTFILES_LINK="${DOTFILES_DOTFILES_LINK:-$DOTFILES_WINDOWS_HOME/.dotfiles}"
 
   DOTFILES_NVIM_CONFIG_DIR="${DOTFILES_NVIM_CONFIG_DIR:-$DOTFILES_LOCAL_APPDATA/nvim}"
-  DOTFILES_WEZTERM_CONFIG_DIR="${DOTFILES_WEZTERM_CONFIG_DIR:-$DOTFILES_XDG_CONFIG_HOME/wezterm}"
-  DOTFILES_WEZTERM_CONFIG_FILE="${DOTFILES_WEZTERM_CONFIG_FILE:-$DOTFILES_WINDOWS_HOME/.wezterm.lua}"
-  DOTFILES_WEZTERM_THEME="${DOTFILES_WEZTERM_THEME:-Tokyo Night Storm}"
   DOTFILES_HERDR_CONFIG_DIR="${DOTFILES_HERDR_CONFIG_DIR:-$DOTFILES_APPDATA/herdr}"
   DOTFILES_CLAUDE_CONFIG_DIR="${DOTFILES_CLAUDE_CONFIG_DIR:-$DOTFILES_WINDOWS_HOME/.claude}"
   DOTFILES_CODEX_CONFIG_DIR="${DOTFILES_CODEX_CONFIG_DIR:-$DOTFILES_WINDOWS_HOME/.codex}"
@@ -85,7 +82,7 @@ dotfiles_setup_paths() {
 
   export DOTFILES_WINDOWS_HOME DOTFILES_LOCAL_APPDATA DOTFILES_APPDATA
   export DOTFILES_XDG_CONFIG_HOME DOTFILES_DOTFILES_LINK
-  export DOTFILES_NVIM_CONFIG_DIR DOTFILES_WEZTERM_CONFIG_DIR DOTFILES_WEZTERM_CONFIG_FILE
+  export DOTFILES_NVIM_CONFIG_DIR
   export DOTFILES_HERDR_CONFIG_DIR DOTFILES_CLAUDE_CONFIG_DIR DOTFILES_CODEX_CONFIG_DIR
   export DOTFILES_OPENCODE_CONFIG_DIR DOTFILES_PI_AGENT_DIR
 }
@@ -172,7 +169,11 @@ dotfiles_configure_scoop() {
 }
 
 dotfiles_install_packages() {
-  if [ -z "${DOTFILES_SCOOP_PACKAGES//[[:space:]]/}" ]; then
+  local package_list="$DOTFILES_SCOOP_PACKAGES"
+  if [ "$DOTFILES_INSTALL_OH_MY_POSH" = "1" ] && [[ " $package_list " != *" oh-my-posh "* ]]; then
+    package_list="$package_list oh-my-posh"
+  fi
+  if [ -z "${package_list//[[:space:]]/}" ]; then
     echo "==> No Scoop packages declared, skipping package installation"
     return 0
   fi
@@ -181,7 +182,7 @@ dotfiles_install_packages() {
   # Scoop is idempotent: installed packages are upgraded only when explicitly
   # requested by the user through Scoop, not silently during every rebuild.
   # shellcheck disable=SC2086
-  scoop install $DOTFILES_SCOOP_PACKAGES
+  scoop install $package_list
 }
 
 dotfiles_find_msys2_root() {
@@ -275,8 +276,8 @@ dotfiles_install_zsh_startup() {
 
   dotfiles_link_git="$(cygpath -u "$DOTFILES_DOTFILES_LINK")"
   pi_agent_dir_git="$(cygpath -u "$DOTFILES_PI_AGENT_DIR")"
-  printf -v source_line 'export DOTFILES_ROOT=%q DOTFILES_INSTALL_ZSH=%q DOTFILES_EDITOR=%q DOTFILES_VISUAL=%q PI_CODING_AGENT_DIR=%q; . "$DOTFILES_ROOT/home/.zshrc"' \
-    "$dotfiles_link_git" 1 "$DOTFILES_EDITOR" "$DOTFILES_VISUAL" "$pi_agent_dir_git"
+  printf -v source_line 'export DOTFILES_ROOT=%q DOTFILES_ZSH_ACTIVE=%q DOTFILES_INSTALL_ZSH=%q DOTFILES_INSTALL_OH_MY_POSH=%q DOTFILES_OH_MY_POSH_THEME=%q DOTFILES_EDITOR=%q DOTFILES_VISUAL=%q PI_CODING_AGENT_DIR=%q; . "$DOTFILES_ROOT/home/.zshrc"' \
+    "$dotfiles_link_git" 1 1 "${DOTFILES_INSTALL_OH_MY_POSH:-0}" "${DOTFILES_OH_MY_POSH_THEME:-tokyo-night-storm}" "$DOTFILES_EDITOR" "$DOTFILES_VISUAL" "$pi_agent_dir_git"
   {
     if [ -f "$target" ]; then cat "$target"; fi
     printf '\n%s\n%s\n%s\n' "$marker_start" "$source_line" "$marker_end"
@@ -377,8 +378,6 @@ dotfiles_link_configs() {
     -XdgConfigHome "$(dotfiles_to_windows_path "$DOTFILES_XDG_CONFIG_HOME")" \
     -DotfilesLinkPath "$(dotfiles_to_windows_path "$DOTFILES_DOTFILES_LINK")" \
     -NvimConfigDir "$(dotfiles_to_windows_path "$DOTFILES_NVIM_CONFIG_DIR")" \
-    -WeztermConfigDir "$(dotfiles_to_windows_path "$DOTFILES_WEZTERM_CONFIG_DIR")" \
-    -WeztermConfigFile "$(dotfiles_to_windows_path "$DOTFILES_WEZTERM_CONFIG_FILE")" \
     -HerdrConfigDir "$(dotfiles_to_windows_path "$DOTFILES_HERDR_CONFIG_DIR")" \
     -ClaudeConfigDir "$(dotfiles_to_windows_path "$DOTFILES_CLAUDE_CONFIG_DIR")" \
     -CodexConfigDir "$(dotfiles_to_windows_path "$DOTFILES_CODEX_CONFIG_DIR")" \
@@ -413,14 +412,14 @@ dotfiles_validate_config() {
     *) echo "DOTFILES_LINK_MODE must be junction or symbolic." >&2; return 1 ;;
   esac
 
-  case "$DOTFILES_WEZTERM_THEME" in
-    'Tokyo Night Storm'|rose-pine-moon) ;;
-    *) echo "DOTFILES_WEZTERM_THEME must be Tokyo Night Storm or rose-pine-moon." >&2; return 1 ;;
+  case "$DOTFILES_OH_MY_POSH_THEME" in
+    tokyo-night-storm|rose-pine-moon) ;;
+    *) echo "DOTFILES_OH_MY_POSH_THEME must be tokyo-night-storm or rose-pine-moon." >&2; return 1 ;;
   esac
 
   local variable_name
   for variable_name in \
-    DOTFILES_INSTALL_SCOOP DOTFILES_UPDATE_SCOOP DOTFILES_INSTALL_ZSH DOTFILES_INSTALL_HERDR \
+    DOTFILES_INSTALL_SCOOP DOTFILES_UPDATE_SCOOP DOTFILES_INSTALL_ZSH DOTFILES_INSTALL_OH_MY_POSH DOTFILES_INSTALL_HERDR \
     DOTFILES_INSTALL_AGENT_CLIS DOTFILES_BACKUP_EXISTING DOTFILES_INSTALL_BASH_HOOK \
     DOTFILES_APPLY_WINDOWS_SETTINGS DOTFILES_DARK_MODE DOTFILES_SHOW_FILE_EXTENSIONS \
     DOTFILES_SHOW_HIDDEN_FILES DOTFILES_HIDE_DESKTOP_ICONS DOTFILES_TASKBAR_AUTO_HIDE \

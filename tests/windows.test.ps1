@@ -82,8 +82,7 @@ function Get-LinkArguments {
         '-XdgConfigHome', $xdg,
         '-DotfilesLinkPath', (Join-Path $user '.dotfiles'),
         '-NvimConfigDir', (Join-Path $local 'nvim'),
-        '-WeztermConfigDir', (Join-Path $xdg 'wezterm'),
-        '-WeztermConfigFile', (Join-Path $user '.wezterm.lua'),
+        '-DocumentsDir', (Join-Path $fixtureRoot 'documents'),
         '-HerdrConfigDir', (Join-Path $appData 'herdr'),
         '-ClaudeConfigDir', (Join-Path $user '.claude'),
         '-CodexConfigDir', (Join-Path $user '.codex'),
@@ -98,7 +97,9 @@ try {
     New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
     . (Join-Path $root 'windows-common.ps1')
 
-    foreach ($script in (Get-ChildItem -LiteralPath $root -Filter '*.ps1' -File)) {
+    $scriptsToParse = @(Get-ChildItem -LiteralPath $root -Filter '*.ps1' -File)
+    $scriptsToParse += Get-ChildItem -LiteralPath (Join-Path $root 'home/.config/powershell') -Filter '*.ps1' -File
+    foreach ($script in $scriptsToParse) {
         $tokens = $null
         $errors = $null
         [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref] $tokens, [ref] $errors) | Out-Null
@@ -110,7 +111,7 @@ try {
     Initialize-DotfilesConfigDefaults $config | Out-Null
     Assert-DotfilesConfig $config
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '1') 'MSYS2 zsh is enabled by default'
-    Assert-Test ([string] $config.DOTFILES_WEZTERM_THEME -eq 'Tokyo Night Storm') 'Tokyo Night Storm is the default WezTerm theme'
+    Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the default prompt theme'
     $config.DOTFILES_EDITOR = 'C:\Program Files\Editor\editor.exe "$HOME"'
     $roundTripPath = Join-Path $testRoot 'roundtrip.env'
     Write-DotfilesEnvFile $config $roundTripPath
@@ -153,15 +154,17 @@ try {
     Assert-Test ($state.Items.Count -gt 10) 'PowerShell TUI package page contains the documented choices'
     Assert-Test ((Get-DotfilesTuiSelectedPackages $state) -eq $stateConfig.DOTFILES_SCOOP_PACKAGES) 'PowerShell TUI initializes package choices'
     $state.PackageSelected.git = $false
+    $state.PackageSelected['oh-my-posh'] = $true
     $state.CustomPackages = @('bat', 'delta')
     Sync-DotfilesTuiToConfig $state
-    Assert-Test ($stateConfig.DOTFILES_SCOOP_PACKAGES -eq 'neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta') 'PowerShell TUI serializes package choices'
+    Assert-Test ($stateConfig.DOTFILES_SCOOP_PACKAGES -eq 'neovim oh-my-posh starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta') 'PowerShell TUI serializes package choices'
+    Assert-Test ([string] $stateConfig.DOTFILES_INSTALL_OH_MY_POSH -eq '1') 'PowerShell TUI enables Oh My Posh with the package choice'
     $state.Page = 3
     Set-DotfilesTuiItems $state
-    $themeItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_WEZTERM_THEME' })[0]
-    Assert-Test ($themeItem.Kind -eq 'choice') 'PowerShell TUI exposes the WezTerm theme choice'
+    $themeItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_OH_MY_POSH_THEME' })[0]
+    Assert-Test ($themeItem.Kind -eq 'choice') 'PowerShell TUI exposes the prompt theme choice'
     Toggle-DotfilesTuiItem $state $themeItem
-    Assert-Test ($stateConfig.DOTFILES_WEZTERM_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the WezTerm theme'
+    Assert-Test ($stateConfig.DOTFILES_OH_MY_POSH_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the prompt theme'
     Pass-Test 'PowerShell TUI state covers documented package choices'
 
     $settingsResult = Invoke-NativeScript (Join-Path $root 'windows-settings.ps1') @(
@@ -182,6 +185,10 @@ try {
     Assert-Test ($linkResult.ExitCode -eq 0) 'Windows link helper created disposable links without elevation'
     Assert-Test ($linkResult.Output -match 'HardLink') 'Windows link helper used hard links for files by default'
     Assert-Test (Test-Path -LiteralPath $settingsTarget -PathType Leaf) 'Windows link helper created the settings link'
+    $profile51Target = Join-Path $fixture 'documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1'
+    $profile7Target = Join-Path $fixture 'documents/PowerShell/Microsoft.PowerShell_profile.ps1'
+    Assert-Test (Test-Path -LiteralPath $profile51Target -PathType Leaf) 'Windows link helper linked the Windows PowerShell profile'
+    Assert-Test (Test-Path -LiteralPath $profile7Target -PathType Leaf) 'Windows link helper linked the PowerShell 7 profile'
     $backupPattern = "$settingsTarget.dotfiles-backup-*"
     $backupCount = @(Get-ChildItem -Path $backupPattern -Force).Count
     Assert-Test ($backupCount -eq 1) 'Windows link helper preserved the existing settings file'
@@ -200,6 +207,7 @@ try {
     $uninstallResult = Invoke-NativeScript (Join-Path $root 'windows-uninstall.ps1') ($uninstallArguments + @('-RestoreBackups', '1'))
     Assert-Test ($uninstallResult.ExitCode -eq 0) 'Windows uninstall helper removed disposable links'
     Assert-Test ((Get-Content -LiteralPath $settingsTarget -Raw) -eq 'pre-existing settings') 'Windows uninstall helper restored the preserved settings file'
+    Assert-Test (-not (Test-Path -LiteralPath $profile7Target)) 'Windows uninstall helper removed the PowerShell profile link'
     Pass-Test 'Windows links are repeatable, backup-safe, restorable, and non-elevated'
 
     $hookConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
@@ -238,6 +246,7 @@ try {
     $zshStartupContent = Get-Content -LiteralPath $zshStartup -Raw
     Assert-Test ((@($zshStartupContent -split "`r?`n" | Where-Object { $_ -eq '# >>> dotfiles managed MSYS2 zsh startup >>>' }).Count) -eq 1) 'MSYS2 zsh startup installation is idempotent'
     Assert-Test ($zshStartupContent -match '\. "\$DOTFILES_ROOT/home/\.zshrc"') 'MSYS2 zsh startup sources the tracked zsh configuration'
+    Assert-Test ($zshStartupContent -match 'DOTFILES_ZSH_ACTIVE') 'MSYS2 zsh startup exports the PowerShell recursion guard'
     Remove-DotfilesZshStartup $discoveredMsys2Root
     Assert-Test ((Get-Content -LiteralPath $zshStartup -Raw) -notmatch 'dotfiles managed MSYS2 zsh startup') 'MSYS2 zsh startup removal removes only the managed block'
     Pass-Test 'MSYS2 discovery and zsh startup are repeatable and removable'

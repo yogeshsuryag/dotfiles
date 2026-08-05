@@ -7,8 +7,7 @@ param(
     [Parameter(Mandatory = $true)] [string] $XdgConfigHome,
     [Parameter(Mandatory = $true)] [string] $DotfilesLinkPath,
     [Parameter(Mandatory = $true)] [string] $NvimConfigDir,
-    [Parameter(Mandatory = $true)] [string] $WeztermConfigDir,
-    [Parameter(Mandatory = $true)] [string] $WeztermConfigFile,
+    [AllowNull()] [string] $DocumentsDir = $null,
     [Parameter(Mandatory = $true)] [string] $HerdrConfigDir,
     [Parameter(Mandatory = $true)] [string] $ClaudeConfigDir,
     [Parameter(Mandatory = $true)] [string] $CodexConfigDir,
@@ -151,11 +150,19 @@ function Remove-ManagedLink([string] $Source, [string] $Target) {
 }
 
 $RepoRoot = Normalize-Path $RepoRoot
+$documentsDir = if ([string]::IsNullOrWhiteSpace($DocumentsDir)) {
+    [Environment]::GetFolderPath('MyDocuments')
+} else {
+    Normalize-Path $DocumentsDir
+}
+if ([string]::IsNullOrWhiteSpace($documentsDir)) {
+    $documentsDir = Join-Path $UserHome 'Documents'
+}
+
 $links = @(
     @{ Source = $RepoRoot; Target = $DotfilesLinkPath },
     @{ Source = (Join-Path $RepoRoot 'home/.config/nvim'); Target = $NvimConfigDir },
-    @{ Source = (Join-Path $RepoRoot 'home/.config/wezterm'); Target = $WeztermConfigDir },
-    @{ Source = (Join-Path $RepoRoot 'home/.config/wezterm/wezterm.lua'); Target = $WeztermConfigFile },
+    @{ Source = (Join-Path $RepoRoot 'home/.config/oh-my-posh'); Target = (Join-Path $XdgConfigHome 'oh-my-posh') },
     @{ Source = (Join-Path $RepoRoot 'home/.config/herdr'); Target = $HerdrConfigDir },
     @{ Source = (Join-Path $RepoRoot 'home/.claude/settings.json'); Target = (Join-Path $ClaudeConfigDir 'settings.json') },
     @{ Source = (Join-Path $RepoRoot 'home/.claude/status-line.js'); Target = (Join-Path $ClaudeConfigDir 'status-line.js') },
@@ -165,7 +172,9 @@ $links = @(
     @{ Source = (Join-Path $RepoRoot 'home/.pi/agent/settings.json'); Target = (Join-Path $PiAgentDir 'settings.json') },
     @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $ClaudeConfigDir 'CLAUDE.md') },
     @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $CodexConfigDir 'AGENTS.md') },
-    @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $OpencodeConfigDir 'AGENTS.md') }
+    @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $OpencodeConfigDir 'AGENTS.md') },
+    @{ Source = (Join-Path $RepoRoot 'home/.config/powershell/Microsoft.PowerShell_profile.ps1'); Target = (Join-Path $documentsDir 'WindowsPowerShell\Microsoft.PowerShell_profile.ps1') },
+    @{ Source = (Join-Path $RepoRoot 'home/.config/powershell/Microsoft.PowerShell_profile.ps1'); Target = (Join-Path $documentsDir 'PowerShell\Microsoft.PowerShell_profile.ps1') }
 )
 
 foreach ($link in $links) {

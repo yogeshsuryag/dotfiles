@@ -83,8 +83,6 @@ dotfiles_powershell_file "$DOTFILES_ROOT/windows-uninstall.ps1" \
   -XdgConfigHome "$(dotfiles_to_windows_path "$DOTFILES_XDG_CONFIG_HOME")" \
   -DotfilesLinkPath "$(dotfiles_to_windows_path "$DOTFILES_DOTFILES_LINK")" \
   -NvimConfigDir "$(dotfiles_to_windows_path "$DOTFILES_NVIM_CONFIG_DIR")" \
-  -WeztermConfigDir "$(dotfiles_to_windows_path "$DOTFILES_WEZTERM_CONFIG_DIR")" \
-  -WeztermConfigFile "$(dotfiles_to_windows_path "$DOTFILES_WEZTERM_CONFIG_FILE")" \
   -HerdrConfigDir "$(dotfiles_to_windows_path "$DOTFILES_HERDR_CONFIG_DIR")" \
   -ClaudeConfigDir "$(dotfiles_to_windows_path "$DOTFILES_CLAUDE_CONFIG_DIR")" \
   -CodexConfigDir "$(dotfiles_to_windows_path "$DOTFILES_CODEX_CONFIG_DIR")" \

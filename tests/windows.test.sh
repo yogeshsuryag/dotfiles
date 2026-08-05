@@ -37,7 +37,7 @@ test_shell_syntax() {
 
 test_power_shell_syntax() {
   local script tokens errors script_win
-  for script in "$ROOT"/*.ps1 "$ROOT/tests/windows.test.ps1"; do
+  for script in "$ROOT"/*.ps1 "$ROOT/tests/windows.test.ps1" "$ROOT"/home/.config/powershell/*.ps1; do
     tokens="$(mktemp)"
     errors="$(mktemp)"
     script_win="$(cygpath -w "$script")"
@@ -90,8 +90,7 @@ run_links() {
     -XdgConfigHome "$xdg_win" \
     -DotfilesLinkPath "$(cygpath -w "$TMP_ROOT/user/.dotfiles")" \
     -NvimConfigDir "$(cygpath -w "$TMP_ROOT/local/nvim")" \
-    -WeztermConfigDir "$(cygpath -w "$TMP_ROOT/xdg/wezterm")" \
-    -WeztermConfigFile "$(cygpath -w "$TMP_ROOT/user/.wezterm.lua")" \
+    -DocumentsDir "$(cygpath -w "$TMP_ROOT/documents")" \
     -HerdrConfigDir "$(cygpath -w "$TMP_ROOT/appdata/herdr")" \
     -ClaudeConfigDir "$(cygpath -w "$TMP_ROOT/user/.claude")" \
     -CodexConfigDir "$(cygpath -w "$TMP_ROOT/user/.codex")" \
@@ -173,9 +172,9 @@ test_config_wizard_coverage() {
     printf '%s' "$rendered_ui_output" > "$DOTFILES_TEST_RENDERED"
     DOTFILES_TUI_PAGE=3
     dotfiles_tui_load_items
-    [ "${DOTFILES_TUI_ITEM_KEYS[0]}" = DOTFILES_WEZTERM_THEME ]
-    dotfiles_tui_toggle_item choice DOTFILES_WEZTERM_THEME
-    [ "$DOTFILES_WEZTERM_THEME" = rose-pine-moon ]
+    [ "${DOTFILES_TUI_ITEM_KEYS[0]}" = DOTFILES_OH_MY_POSH_THEME ]
+    dotfiles_tui_toggle_item choice DOTFILES_OH_MY_POSH_THEME
+    [ "$DOTFILES_OH_MY_POSH_THEME" = rose-pine-moon ]
   ) || fail "configuration TUI serialization failed"
 
   [ -f "$generated_config" ] || fail "configuration TUI did not write a config file"
@@ -190,20 +189,20 @@ test_config_wizard_coverage() {
     # shellcheck disable=SC1090
     . "$generated_config"
     [ "$DOTFILES_INSTALL_ZSH" = 1 ]
-    [ "$DOTFILES_WEZTERM_THEME" = 'Tokyo Night Storm' ]
-    [ "$DOTFILES_SCOOP_PACKAGES" = 'neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta' ]
+    [ "$DOTFILES_OH_MY_POSH_THEME" = tokyo-night-storm ]
+    [ "$DOTFILES_SCOOP_PACKAGES" = 'neovim starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta' ]
     [ "$DOTFILES_SCOOP_BUCKETS" = 'main=https://example.invalid/bucket' ]
   ) || fail "package and bucket selections were not serialized correctly"
   for label in \
     'Install Scoop' 'Install MSYS2 zsh' 'Additional Scoop packages' 'Windows home directory' \
-    'WezTerm theme' 'Link repository paths using' 'Apply Windows settings' 'Review your choices'; do
+    'Oh My Posh' 'Prompt theme' 'Link repository paths using' 'Apply Windows settings' 'Review your choices'; do
     grep -Fq "$label" "$ROOT/windows-config-tui.sh" \
       || fail "configuration TUI is missing the human-readable label: $label"
   done
   grep -Fq 'stty -icanon -echo' "$ROOT/windows-config-tui.sh" \
     || fail "configuration TUI does not configure raw keyboard input"
-  grep -Fq 'DOTFILES_WEZTERM_THEME' "$ROOT/windows-config-tui.sh" \
-    || fail "configuration TUI does not expose the WezTerm theme setting"
+  grep -Fq 'DOTFILES_OH_MY_POSH_THEME' "$ROOT/windows-config-tui.sh" \
+    || fail "configuration TUI does not expose the prompt theme setting"
   grep -Fq -- '--configure' "$ROOT/bootstrap.sh" || fail "bootstrap lacks --configure"
   grep -Fq -- '--configure' "$ROOT/rebuild.sh" || fail "rebuild lacks --configure"
   grep -Fq -- '--configure' "$ROOT/uninstall.sh" || fail "uninstall lacks --configure"
@@ -253,9 +252,10 @@ test_config_tui_keyboard_flow() {
     dotfiles_tui_run_pages
     dotfiles_tui_commit_collections
     dotfiles_tui_run_review
-    [ "$DOTFILES_SCOOP_PACKAGES" = 'git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF' ]
+    [ "$DOTFILES_SCOOP_PACKAGES" = 'git neovim oh-my-posh starship ripgrep fd fzf jq lazygit nodejs Hack-NF' ]
     [ "$DOTFILES_UPDATE_SCOOP" = 1 ]
     [ "$DOTFILES_INSTALL_AGENT_CLIS" = 1 ]
+    [ "$DOTFILES_INSTALL_OH_MY_POSH" = 1 ]
     exec 9<&-
   ) || fail "configuration TUI did not accept arrow and Enter navigation"
   pass "Configuration TUI accepts arrows, Space, Tab, and Enter navigation"
@@ -348,24 +348,18 @@ test_msys2_zsh_setup() {
   ) || fail "MSYS2 discovery and zsh startup helpers failed"
 
   grep -Fq 'eval "$(starship init zsh)"' "$ROOT/home/.zshrc" \
-    || fail "zsh startup does not initialize Starship"
-  grep -Fq 'msys2_shell.cmd' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not discover msys2_shell.cmd"
-  grep -Fq '"-shell"' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not pass the shell selector"
-  grep -Fq '"zsh"' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not launch zsh"
-  grep -Fq 'read_config_value("DOTFILES_WEZTERM_THEME")' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not read the selected theme"
-  grep -Fq 'read_config_value("DOTFILES_INSTALL_ZSH") ~= "0"' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not honor the zsh opt-out"
-  grep -Fq 'local DEFAULT_WEZTERM_THEME = "Tokyo Night Storm"' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not use Tokyo Night Storm"
-  grep -Fq 'config.win32_system_backdrop = "Acrylic"' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not enable Windows Acrylic blur"
-  grep -Fq 'config.animation_fps = 60' "$ROOT/home/.config/wezterm/wezterm.lua" \
-    || fail "WezTerm config does not enable smooth animation timing"
-  pass "MSYS2 discovery, zsh defaults, and WezTerm visual configuration are validated"
+    || fail "zsh startup does not fall back to Starship"
+  grep -Fq 'oh-my-posh init zsh' "$ROOT/home/.zshrc" \
+    || fail "zsh startup does not initialize Oh My Posh"
+  grep -Fq 'DOTFILES_INSTALL_OH_MY_POSH' "$ROOT/home/.zshrc" \
+    || fail "zsh startup does not honor the Oh My Posh opt-in"
+  [ -f "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" ] \
+    || fail "shared PowerShell profile is missing"
+  [ -f "$ROOT/home/.config/oh-my-posh/tokyo-night-storm.omp.json" ] \
+    || fail "Tokyo Night Oh My Posh theme is missing"
+  [ -f "$ROOT/home/.config/oh-my-posh/rose-pine-moon.omp.json" ] \
+    || fail "Rose Pine Moon Oh My Posh theme is missing"
+  pass "MSYS2 discovery, zsh defaults, and PowerShell prompt configuration are validated"
 }
 
 test_settings_noop() {

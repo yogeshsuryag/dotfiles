@@ -14,8 +14,6 @@ dotfiles_apply_config_defaults() {
   DOTFILES_XDG_CONFIG_HOME="${DOTFILES_XDG_CONFIG_HOME:-$DOTFILES_WINDOWS_HOME/.config}"
   DOTFILES_DOTFILES_LINK="${DOTFILES_DOTFILES_LINK:-$DOTFILES_WINDOWS_HOME/.dotfiles}"
   DOTFILES_NVIM_CONFIG_DIR="${DOTFILES_NVIM_CONFIG_DIR:-$DOTFILES_LOCAL_APPDATA/nvim}"
-  DOTFILES_WEZTERM_CONFIG_DIR="${DOTFILES_WEZTERM_CONFIG_DIR:-$DOTFILES_XDG_CONFIG_HOME/wezterm}"
-  DOTFILES_WEZTERM_CONFIG_FILE="${DOTFILES_WEZTERM_CONFIG_FILE:-$DOTFILES_WINDOWS_HOME/.wezterm.lua}"
   DOTFILES_HERDR_CONFIG_DIR="${DOTFILES_HERDR_CONFIG_DIR:-$DOTFILES_APPDATA/herdr}"
   DOTFILES_CLAUDE_CONFIG_DIR="${DOTFILES_CLAUDE_CONFIG_DIR:-$DOTFILES_WINDOWS_HOME/.claude}"
   DOTFILES_CODEX_CONFIG_DIR="${DOTFILES_CODEX_CONFIG_DIR:-$DOTFILES_WINDOWS_HOME/.codex}"
@@ -25,13 +23,14 @@ dotfiles_apply_config_defaults() {
   DOTFILES_INSTALL_SCOOP="${DOTFILES_INSTALL_SCOOP:-1}"
   DOTFILES_SCOOP_BUCKETS="${DOTFILES_SCOOP_BUCKETS:-extras}"
   DOTFILES_NERD_FONTS_BUCKET_URL="${DOTFILES_NERD_FONTS_BUCKET_URL:-https://github.com/matthewjberger/scoop-nerd-fonts}"
-  DOTFILES_SCOOP_PACKAGES="${DOTFILES_SCOOP_PACKAGES:-git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF}"
+  DOTFILES_SCOOP_PACKAGES="${DOTFILES_SCOOP_PACKAGES:-git neovim starship ripgrep fd fzf jq lazygit nodejs Hack-NF}"
   DOTFILES_UPDATE_SCOOP="${DOTFILES_UPDATE_SCOOP:-0}"
   DOTFILES_INSTALL_HERDR="${DOTFILES_INSTALL_HERDR:-1}"
   DOTFILES_HERDR_INSTALL_URL="${DOTFILES_HERDR_INSTALL_URL:-https://herdr.dev/install.ps1}"
   DOTFILES_INSTALL_AGENT_CLIS="${DOTFILES_INSTALL_AGENT_CLIS:-0}"
   DOTFILES_INSTALL_ZSH="${DOTFILES_INSTALL_ZSH:-1}"
-  DOTFILES_WEZTERM_THEME="${DOTFILES_WEZTERM_THEME:-Tokyo Night Storm}"
+  DOTFILES_INSTALL_OH_MY_POSH="${DOTFILES_INSTALL_OH_MY_POSH:-0}"
+  DOTFILES_OH_MY_POSH_THEME="${DOTFILES_OH_MY_POSH_THEME:-tokyo-night-storm}"
   DOTFILES_LINK_MODE="${DOTFILES_LINK_MODE:-junction}"
   DOTFILES_BACKUP_EXISTING="${DOTFILES_BACKUP_EXISTING:-1}"
   DOTFILES_INSTALL_BASH_HOOK="${DOTFILES_INSTALL_BASH_HOOK:-1}"
@@ -76,7 +75,7 @@ dotfiles_tui_page_intro() {
     0) printf 'Choose the tools Scoop should install. Space toggles a choice; custom entries stay space-separated.' ;;
     1) printf 'These installers are optional. URLs are editable so you can review the source before continuing.' ;;
     2) printf 'Defaults are detected from Windows. Use Git Bash paths such as /c/Users/name; press Enter to edit.' ;;
-    3) printf 'Choose the WezTerm theme, link behavior, and which editor commands Git Bash should use.' ;;
+    3) printf 'Choose the prompt theme, link behavior, and which editor commands Git Bash should use.' ;;
     4) printf 'Registry changes are opt-in. Leave the master switch off to make this section a no-op.' ;;
     *) printf 'Nothing is saved until you choose Save configuration. Go back to adjust any section.' ;;
   esac
@@ -97,12 +96,12 @@ dotfiles_tui_normalize_words() {
 dotfiles_tui_initialize_collections() {
   local package index found bucket
 
-  DOTFILES_TUI_PACKAGE_OPTIONS=(git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF)
-  DOTFILES_TUI_PACKAGE_LABELS=('Git for Windows' 'Neovim' 'WezTerm' 'Starship' 'ripgrep' 'fd' 'fzf' 'jq' 'lazygit' 'Node.js' 'Hack Nerd Font')
+  DOTFILES_TUI_PACKAGE_OPTIONS=(git neovim oh-my-posh starship ripgrep fd fzf jq lazygit nodejs Hack-NF)
+  DOTFILES_TUI_PACKAGE_LABELS=('Git for Windows' 'Neovim' 'Oh My Posh' 'Starship' 'ripgrep' 'fd' 'fzf' 'jq' 'lazygit' 'Node.js' 'Hack Nerd Font')
   DOTFILES_TUI_PACKAGE_DESCRIPTIONS=(
     'Git and Git Bash, used by the repository and daily development.'
     'The terminal editor configured in home/.config/nvim.'
-    'The terminal emulator configured in home/.config/wezterm.'
+    'The optional prompt configured for PowerShell and zsh.'
     'The shell prompt used by the managed Git Bash configuration.'
     'Fast recursive search for files and text.'
     'A fast, user-friendly alternative to find.'
@@ -135,6 +134,15 @@ dotfiles_tui_initialize_collections() {
       fi
     fi
   done
+
+  if [ "$DOTFILES_INSTALL_OH_MY_POSH" = 1 ]; then
+    for index in "${!DOTFILES_TUI_PACKAGE_OPTIONS[@]}"; do
+      if [ "${DOTFILES_TUI_PACKAGE_OPTIONS[$index]}" = oh-my-posh ]; then
+        DOTFILES_TUI_PACKAGE_SELECTED[$index]=1
+        break
+      fi
+    done
+  fi
 
   DOTFILES_TUI_BUCKET_EXTRAS=0
   DOTFILES_TUI_CUSTOM_BUCKETS=''
@@ -188,6 +196,7 @@ dotfiles_tui_selected_buckets() {
 dotfiles_tui_commit_collections() {
   DOTFILES_SCOOP_PACKAGES="$(dotfiles_tui_selected_packages)"
   DOTFILES_SCOOP_BUCKETS="$(dotfiles_tui_selected_buckets)"
+  DOTFILES_INSTALL_OH_MY_POSH="$(dotfiles_tui_package_selected oh-my-posh)"
 }
 
 dotfiles_tui_package_selected() {
@@ -221,8 +230,8 @@ dotfiles_tui_choice_label() {
   case "$1:$2" in
     DOTFILES_LINK_MODE:junction) printf 'Junctions and hard links (recommended)' ;;
     DOTFILES_LINK_MODE:symbolic) printf 'Symbolic links' ;;
-    DOTFILES_WEZTERM_THEME:'Tokyo Night Storm') printf 'Tokyo Night Storm (recommended)' ;;
-    DOTFILES_WEZTERM_THEME:rose-pine-moon) printf 'Rose Pine Moon' ;;
+    DOTFILES_OH_MY_POSH_THEME:tokyo-night-storm) printf 'Tokyo Night (recommended)' ;;
+    DOTFILES_OH_MY_POSH_THEME:rose-pine-moon) printf 'Rose Pine Moon' ;;
     *) printf '%s' "$2" ;;
   esac
 }
@@ -273,7 +282,7 @@ dotfiles_tui_load_items() {
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_HERDR 'Install Herdr' "Install Herdr's Windows beta using the source below when it is not already available."
       dotfiles_tui_add_item text DOTFILES_HERDR_INSTALL_URL 'Herdr installer source' 'PowerShell installer URL used for the optional Herdr installation.'
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_AGENT_CLIS 'Install optional AI command-line tools' 'Install Claude, Codex, Pi, and opencode with npm. Credentials remain local to each tool.'
-      dotfiles_tui_add_item toggle DOTFILES_INSTALL_ZSH 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the WezTerm default shell. Git Bash stays independent.'
+      dotfiles_tui_add_item toggle DOTFILES_INSTALL_ZSH 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the PowerShell default shell. Git Bash stays independent.'
       dotfiles_tui_add_action back 'Back to tools and packages' 'Return to the previous section without losing these choices.'
       dotfiles_tui_add_action next 'Continue to file locations' 'Open the detected Windows paths and application locations.'
       ;;
@@ -281,11 +290,9 @@ dotfiles_tui_load_items() {
       dotfiles_tui_add_item text DOTFILES_WINDOWS_HOME 'Windows home directory' 'The main user directory used for dotfiles, agent settings, and shell files.'
       dotfiles_tui_add_item text DOTFILES_LOCAL_APPDATA 'Local application data' 'Windows local application data directory; Neovim is linked below it by default.'
       dotfiles_tui_add_item text DOTFILES_APPDATA 'Roaming application data' 'Windows roaming application data directory; Herdr is linked below it by default.'
-      dotfiles_tui_add_item text DOTFILES_XDG_CONFIG_HOME 'Shared config directory' 'Git Bash-style config home used by WezTerm and opencode.'
+      dotfiles_tui_add_item text DOTFILES_XDG_CONFIG_HOME 'Shared config directory' 'Git Bash-style config home used by zsh, Oh My Posh, and opencode.'
       dotfiles_tui_add_item text DOTFILES_DOTFILES_LINK 'Repository link location' 'Convenient path exposed in the shell as the active dotfiles checkout.'
       dotfiles_tui_add_item text DOTFILES_NVIM_CONFIG_DIR 'Neovim configuration directory' "Destination for the repository's Neovim configuration."
-      dotfiles_tui_add_item text DOTFILES_WEZTERM_CONFIG_DIR 'WezTerm configuration directory' "Destination for the repository's WezTerm configuration directory."
-      dotfiles_tui_add_item text DOTFILES_WEZTERM_CONFIG_FILE 'WezTerm single-file config' 'Destination for the top-level WezTerm configuration file.'
       dotfiles_tui_add_item text DOTFILES_HERDR_CONFIG_DIR 'Herdr configuration directory' "Destination for the repository's Herdr configuration."
       dotfiles_tui_add_item text DOTFILES_CLAUDE_CONFIG_DIR 'Claude configuration directory' 'Destination for authored Claude configuration files.'
       dotfiles_tui_add_item text DOTFILES_CODEX_CONFIG_DIR 'Codex configuration directory' 'Destination for shared Codex instruction files.'
@@ -295,7 +302,7 @@ dotfiles_tui_load_items() {
       dotfiles_tui_add_action next 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
       ;;
     3)
-      dotfiles_tui_add_item choice DOTFILES_WEZTERM_THEME 'WezTerm theme' 'Choose between the Tokyo Night Storm and Rose Pine Moon built-in color schemes.'
+      dotfiles_tui_add_item choice DOTFILES_OH_MY_POSH_THEME 'Prompt theme' 'Choose between the Tokyo Night and Rose Pine prompt color schemes.'
       dotfiles_tui_add_item choice DOTFILES_LINK_MODE 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
       dotfiles_tui_add_item toggle DOTFILES_BACKUP_EXISTING 'Back up existing files' 'Move real files and directories aside before creating managed links.'
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_BASH_HOOK 'Install Git Bash integration' 'Add a managed block to .bashrc and .bash_profile for the repository and editor settings.'
@@ -420,14 +427,15 @@ dotfiles_tui_render_summary() {
   printf '  Packages selected: %d\n' "$package_count" > "$DOTFILES_TUI_TTY"
   printf '  Package list: %s\n' "$(dotfiles_tui_clip "${selected_packages:-none}" 68)" > "$DOTFILES_TUI_TTY"
   printf '  Scoop buckets: %s\n' "$(dotfiles_tui_clip "${selected_buckets:-none}" 68)" > "$DOTFILES_TUI_TTY"
-  printf '  Installers: Herdr %s, AI tools %s, MSYS2 zsh %s\n' \
+  printf '  Installers: Herdr %s, AI tools %s, MSYS2 zsh %s, Oh My Posh %s\n' \
     "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_HERDR)" \
     "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_AGENT_CLIS)" \
-    "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_ZSH)" > "$DOTFILES_TUI_TTY"
+    "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_ZSH)" \
+    "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_OH_MY_POSH)" > "$DOTFILES_TUI_TTY"
   printf '  Main home: %s\n' "$(dotfiles_tui_clip "$DOTFILES_WINDOWS_HOME" 68)" > "$DOTFILES_TUI_TTY"
   printf '  Repository link: %s\n' "$(dotfiles_tui_clip "$DOTFILES_DOTFILES_LINK" 68)" > "$DOTFILES_TUI_TTY"
-  printf '  WezTerm theme: %s\n' \
-    "$(dotfiles_tui_choice_label DOTFILES_WEZTERM_THEME "$DOTFILES_WEZTERM_THEME")" > "$DOTFILES_TUI_TTY"
+  printf '  Prompt theme: %s\n' \
+    "$(dotfiles_tui_choice_label DOTFILES_OH_MY_POSH_THEME "$DOTFILES_OH_MY_POSH_THEME")" > "$DOTFILES_TUI_TTY"
   printf '  Linking: %s, backups %s, Git Bash integration %s\n' \
     "$(dotfiles_tui_choice_label DOTFILES_LINK_MODE "$DOTFILES_LINK_MODE")" \
     "$(dotfiles_tui_item_value toggle DOTFILES_BACKUP_EXISTING)" \
@@ -587,8 +595,8 @@ dotfiles_tui_toggle_item() {
       if [ "$DOTFILES_TUI_BUCKET_EXTRAS" = 1 ]; then DOTFILES_TUI_BUCKET_EXTRAS=0; else DOTFILES_TUI_BUCKET_EXTRAS=1; fi
       ;;
     choice)
-      if [ "$key" = DOTFILES_WEZTERM_THEME ]; then
-        if [ "${!key}" = 'Tokyo Night Storm' ]; then printf -v "$key" '%s' rose-pine-moon; else printf -v "$key" '%s' 'Tokyo Night Storm'; fi
+      if [ "$key" = DOTFILES_OH_MY_POSH_THEME ]; then
+        if [ "${!key}" = tokyo-night-storm ]; then printf -v "$key" '%s' rose-pine-moon; else printf -v "$key" '%s' tokyo-night-storm; fi
       elif [ "${!key}" = junction ]; then
         printf -v "$key" '%s' symbolic
       else
@@ -716,7 +724,8 @@ dotfiles_tui_write_config() {
     dotfiles_write_config_value DOTFILES_SCOOP_PACKAGES
     dotfiles_write_config_value DOTFILES_UPDATE_SCOOP
     dotfiles_write_config_value DOTFILES_INSTALL_ZSH
-    dotfiles_write_config_value DOTFILES_WEZTERM_THEME
+    dotfiles_write_config_value DOTFILES_INSTALL_OH_MY_POSH
+    dotfiles_write_config_value DOTFILES_OH_MY_POSH_THEME
     dotfiles_write_config_value DOTFILES_INSTALL_HERDR
     dotfiles_write_config_value DOTFILES_HERDR_INSTALL_URL
     dotfiles_write_config_value DOTFILES_INSTALL_AGENT_CLIS
@@ -726,8 +735,6 @@ dotfiles_tui_write_config() {
     dotfiles_write_config_value DOTFILES_XDG_CONFIG_HOME
     dotfiles_write_config_value DOTFILES_DOTFILES_LINK
     dotfiles_write_config_value DOTFILES_NVIM_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_WEZTERM_CONFIG_DIR
-    dotfiles_write_config_value DOTFILES_WEZTERM_CONFIG_FILE
     dotfiles_write_config_value DOTFILES_HERDR_CONFIG_DIR
     dotfiles_write_config_value DOTFILES_CLAUDE_CONFIG_DIR
     dotfiles_write_config_value DOTFILES_CODEX_CONFIG_DIR

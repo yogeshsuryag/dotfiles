@@ -14,6 +14,8 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_SCOOP_PACKAGES',
     'DOTFILES_UPDATE_SCOOP',
     'DOTFILES_INSTALL_ZSH',
+    'DOTFILES_INSTALL_OH_MY_POSH',
+    'DOTFILES_OH_MY_POSH_THEME',
     'DOTFILES_INSTALL_HERDR',
     'DOTFILES_HERDR_INSTALL_URL',
     'DOTFILES_INSTALL_AGENT_CLIS',
@@ -23,9 +25,6 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_XDG_CONFIG_HOME',
     'DOTFILES_DOTFILES_LINK',
     'DOTFILES_NVIM_CONFIG_DIR',
-    'DOTFILES_WEZTERM_CONFIG_DIR',
-    'DOTFILES_WEZTERM_CONFIG_FILE',
-    'DOTFILES_WEZTERM_THEME',
     'DOTFILES_HERDR_CONFIG_DIR',
     'DOTFILES_CLAUDE_CONFIG_DIR',
     'DOTFILES_CODEX_CONFIG_DIR',
@@ -128,9 +127,6 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_DOTFILES_LINK' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.dotfiles')
 
     Set-DotfilesDefault $Config 'DOTFILES_NVIM_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_LOCAL_APPDATA 'nvim')
-    Set-DotfilesDefault $Config 'DOTFILES_WEZTERM_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_XDG_CONFIG_HOME 'wezterm')
-    Set-DotfilesDefault $Config 'DOTFILES_WEZTERM_CONFIG_FILE' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.wezterm.lua')
-    Set-DotfilesDefault $Config 'DOTFILES_WEZTERM_THEME' 'Tokyo Night Storm'
     Set-DotfilesDefault $Config 'DOTFILES_HERDR_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_APPDATA 'herdr')
     Set-DotfilesDefault $Config 'DOTFILES_CLAUDE_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.claude')
     Set-DotfilesDefault $Config 'DOTFILES_CODEX_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.codex')
@@ -140,9 +136,11 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_SCOOP' '1'
     Set-DotfilesDefault $Config 'DOTFILES_SCOOP_BUCKETS' 'extras'
     Set-DotfilesDefault $Config 'DOTFILES_NERD_FONTS_BUCKET_URL' 'https://github.com/matthewjberger/scoop-nerd-fonts'
-    Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim wezterm starship ripgrep fd fzf jq lazygit nodejs Hack-NF'
+    Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim starship ripgrep fd fzf jq lazygit nodejs Hack-NF'
     Set-DotfilesDefault $Config 'DOTFILES_UPDATE_SCOOP' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '1'
+    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_OH_MY_POSH' '0'
+    Set-DotfilesDefault $Config 'DOTFILES_OH_MY_POSH_THEME' 'tokyo-night-storm'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_HERDR' '1'
     Set-DotfilesDefault $Config 'DOTFILES_HERDR_INSTALL_URL' 'https://herdr.dev/install.ps1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_AGENT_CLIS' '0'
@@ -354,12 +352,12 @@ function Assert-DotfilesConfig {
     if (@('junction', 'symbolic') -notcontains [string] $Config.DOTFILES_LINK_MODE) {
         throw 'DOTFILES_LINK_MODE must be junction or symbolic.'
     }
-    if (@('Tokyo Night Storm', 'rose-pine-moon') -notcontains [string] $Config.DOTFILES_WEZTERM_THEME) {
-        throw 'DOTFILES_WEZTERM_THEME must be Tokyo Night Storm or rose-pine-moon.'
+    if (@('tokyo-night-storm', 'rose-pine-moon') -notcontains [string] $Config.DOTFILES_OH_MY_POSH_THEME) {
+        throw 'DOTFILES_OH_MY_POSH_THEME must be tokyo-night-storm or rose-pine-moon.'
     }
 
     $booleanKeys = @(
-        'DOTFILES_INSTALL_SCOOP', 'DOTFILES_UPDATE_SCOOP', 'DOTFILES_INSTALL_ZSH', 'DOTFILES_INSTALL_HERDR',
+        'DOTFILES_INSTALL_SCOOP', 'DOTFILES_UPDATE_SCOOP', 'DOTFILES_INSTALL_ZSH', 'DOTFILES_INSTALL_OH_MY_POSH', 'DOTFILES_INSTALL_HERDR',
         'DOTFILES_INSTALL_AGENT_CLIS', 'DOTFILES_BACKUP_EXISTING', 'DOTFILES_INSTALL_BASH_HOOK',
         'DOTFILES_APPLY_WINDOWS_SETTINGS', 'DOTFILES_DARK_MODE', 'DOTFILES_SHOW_FILE_EXTENSIONS',
         'DOTFILES_SHOW_HIDDEN_FILES', 'DOTFILES_HIDE_DESKTOP_ICONS', 'DOTFILES_TASKBAR_AUTO_HIDE',
@@ -484,6 +482,9 @@ function Install-DotfilesPackages {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
     $packages = @([string] $Config.DOTFILES_SCOOP_PACKAGES -split '\s+' | Where-Object { $_ })
+    if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1' -and $packages -notcontains 'oh-my-posh') {
+        $packages += 'oh-my-posh'
+    }
     if ($packages.Count -eq 0) {
         Write-Host '==> No Scoop packages declared, skipping package installation'
         return
@@ -598,7 +599,9 @@ function Install-DotfilesZshStartup {
     $dotfilesLink = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_DOTFILES_LINK))
     $piAgentDir = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_PI_AGENT_DIR))
     $sourceLine = 'export DOTFILES_ROOT="' + (ConvertTo-BashDoubleQuoted $dotfilesLink) +
-        '" DOTFILES_INSTALL_ZSH="1" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
+        '" DOTFILES_ZSH_ACTIVE="1" DOTFILES_INSTALL_ZSH="1" DOTFILES_INSTALL_OH_MY_POSH="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH)) +
+        '" DOTFILES_OH_MY_POSH_THEME="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_OH_MY_POSH_THEME)) +
+        '" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
         '" DOTFILES_VISUAL="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_VISUAL)) +
         '" PI_CODING_AGENT_DIR="' + (ConvertTo-BashDoubleQuoted $piAgentDir) +
         '"; . "$DOTFILES_ROOT/home/.zshrc"'
@@ -783,8 +786,6 @@ function Invoke-DotfilesLinks {
         -XdgConfigHome (ConvertTo-NativePath $Config.DOTFILES_XDG_CONFIG_HOME) `
         -DotfilesLinkPath (ConvertTo-NativePath $Config.DOTFILES_DOTFILES_LINK) `
         -NvimConfigDir (ConvertTo-NativePath $Config.DOTFILES_NVIM_CONFIG_DIR) `
-        -WeztermConfigDir (ConvertTo-NativePath $Config.DOTFILES_WEZTERM_CONFIG_DIR) `
-        -WeztermConfigFile (ConvertTo-NativePath $Config.DOTFILES_WEZTERM_CONFIG_FILE) `
         -HerdrConfigDir (ConvertTo-NativePath $Config.DOTFILES_HERDR_CONFIG_DIR) `
         -ClaudeConfigDir (ConvertTo-NativePath $Config.DOTFILES_CLAUDE_CONFIG_DIR) `
         -CodexConfigDir (ConvertTo-NativePath $Config.DOTFILES_CODEX_CONFIG_DIR) `
@@ -829,8 +830,6 @@ function Invoke-DotfilesUninstallLinks {
         -XdgConfigHome (ConvertTo-NativePath $Config.DOTFILES_XDG_CONFIG_HOME) `
         -DotfilesLinkPath (ConvertTo-NativePath $Config.DOTFILES_DOTFILES_LINK) `
         -NvimConfigDir (ConvertTo-NativePath $Config.DOTFILES_NVIM_CONFIG_DIR) `
-        -WeztermConfigDir (ConvertTo-NativePath $Config.DOTFILES_WEZTERM_CONFIG_DIR) `
-        -WeztermConfigFile (ConvertTo-NativePath $Config.DOTFILES_WEZTERM_CONFIG_FILE) `
         -HerdrConfigDir (ConvertTo-NativePath $Config.DOTFILES_HERDR_CONFIG_DIR) `
         -ClaudeConfigDir (ConvertTo-NativePath $Config.DOTFILES_CLAUDE_CONFIG_DIR) `
         -CodexConfigDir (ConvertTo-NativePath $Config.DOTFILES_CODEX_CONFIG_DIR) `

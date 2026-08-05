@@ -47,5 +47,5 @@ dotfiles_apply_windows_settings
 
 echo "==> Bootstrap complete"
 echo "    Restart Git Bash to load the new shell configuration."
-echo "    Restart WezTerm so it can use the new MSYS2 zsh default shell."
+echo "    Restart PowerShell so its profile launches the new MSYS2 zsh shell."
 echo "    Re-run ./rebuild.sh after changing repository files or windows-config.env."

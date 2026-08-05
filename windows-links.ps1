@@ -7,8 +7,7 @@ param(
     [Parameter(Mandatory = $true)] [string] $XdgConfigHome,
     [Parameter(Mandatory = $true)] [string] $DotfilesLinkPath,
     [Parameter(Mandatory = $true)] [string] $NvimConfigDir,
-    [Parameter(Mandatory = $true)] [string] $WeztermConfigDir,
-    [Parameter(Mandatory = $true)] [string] $WeztermConfigFile,
+    [AllowNull()] [string] $DocumentsDir = $null,
     [Parameter(Mandatory = $true)] [string] $HerdrConfigDir,
     [Parameter(Mandatory = $true)] [string] $ClaudeConfigDir,
     [Parameter(Mandatory = $true)] [string] $CodexConfigDir,
@@ -123,11 +122,20 @@ function New-DotfilesLink([string] $Source, [string] $Target, [ValidateSet('Dire
 }
 
 $RepoRoot = Normalize-Path $RepoRoot
+$documentsDir = if ([string]::IsNullOrWhiteSpace($DocumentsDir)) {
+    [Environment]::GetFolderPath('MyDocuments')
+} else {
+    Normalize-Path $DocumentsDir
+}
+if ([string]::IsNullOrWhiteSpace($documentsDir)) {
+    $documentsDir = Join-Path $UserHome 'Documents'
+}
+
+$profileSource = Join-Path $RepoRoot 'home/.config/powershell/Microsoft.PowerShell_profile.ps1'
 $links = @(
     @{ Source = $RepoRoot; Target = $DotfilesLinkPath; Kind = 'Directory' },
     @{ Source = (Join-Path $RepoRoot 'home/.config/nvim'); Target = $NvimConfigDir; Kind = 'Directory' },
-    @{ Source = (Join-Path $RepoRoot 'home/.config/wezterm'); Target = $WeztermConfigDir; Kind = 'Directory' },
-    @{ Source = (Join-Path $RepoRoot 'home/.config/wezterm/wezterm.lua'); Target = $WeztermConfigFile; Kind = 'File' },
+    @{ Source = (Join-Path $RepoRoot 'home/.config/oh-my-posh'); Target = (Join-Path $XdgConfigHome 'oh-my-posh'); Kind = 'Directory' },
     @{ Source = (Join-Path $RepoRoot 'home/.config/herdr'); Target = $HerdrConfigDir; Kind = 'Directory' },
     @{ Source = (Join-Path $RepoRoot 'home/.claude/settings.json'); Target = (Join-Path $ClaudeConfigDir 'settings.json'); Kind = 'File' },
     @{ Source = (Join-Path $RepoRoot 'home/.claude/status-line.js'); Target = (Join-Path $ClaudeConfigDir 'status-line.js'); Kind = 'File' },
@@ -137,7 +145,9 @@ $links = @(
     @{ Source = (Join-Path $RepoRoot 'home/.pi/agent/settings.json'); Target = (Join-Path $PiAgentDir 'settings.json'); Kind = 'File' },
     @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $ClaudeConfigDir 'CLAUDE.md'); Kind = 'File' },
     @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $CodexConfigDir 'AGENTS.md'); Kind = 'File' },
-    @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $OpencodeConfigDir 'AGENTS.md'); Kind = 'File' }
+    @{ Source = (Join-Path $RepoRoot 'home/AGENTS.md'); Target = (Join-Path $OpencodeConfigDir 'AGENTS.md'); Kind = 'File' },
+    @{ Source = $profileSource; Target = (Join-Path $documentsDir 'WindowsPowerShell\Microsoft.PowerShell_profile.ps1'); Kind = 'File' },
+    @{ Source = $profileSource; Target = (Join-Path $documentsDir 'PowerShell\Microsoft.PowerShell_profile.ps1'); Kind = 'File' }
 )
 
 foreach ($link in $links) {
