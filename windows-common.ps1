@@ -567,11 +567,11 @@ function Invoke-DotfilesMsys2Pacman {
         throw "MSYS2 bash was not found: $bashPath"
     }
 
-    Write-Host '==> Installing or updating MSYS2 zsh and autocomplete plugins with pacman'
+    Write-Host '==> Installing or updating MSYS2 zsh with pacman'
     $previousArgumentConversion = $env:MSYS2_ARG_CONV_EXCL
     $env:MSYS2_ARG_CONV_EXCL = '*'
     try {
-        & $bashPath '--login' '-c' 'pacman -S --needed --noconfirm zsh zsh-autosuggestions zsh-syntax-highlighting'
+        & $bashPath '--login' '-c' 'pacman -S --needed --noconfirm zsh'
         $exitCode = $LASTEXITCODE
     } finally {
         if ($null -eq $previousArgumentConversion) {
@@ -587,6 +587,28 @@ function Invoke-DotfilesMsys2Pacman {
     $zshPath = Join-Path $Msys2Root 'usr/bin/zsh.exe'
     if (-not (Test-Path -LiteralPath $zshPath -PathType Leaf)) {
         throw "MSYS2 pacman completed but zsh was not found: $zshPath"
+    }
+
+    Invoke-DotfilesMsys2Plugins $Msys2Root
+}
+
+function Invoke-DotfilesMsys2Plugins {
+    param([Parameter(Mandatory = $true)] [string] $Msys2Root)
+
+    $pluginsRoot = Join-Path $Msys2Root 'usr/share/zsh/plugins'
+    $plugins = @(
+        @{ Name = 'zsh-autosuggestions'; Url = 'https://github.com/zsh-users/zsh-autosuggestions.git' },
+        @{ Name = 'zsh-syntax-highlighting'; Url = 'https://github.com/zsh-users/zsh-syntax-highlighting.git' }
+    )
+    foreach ($plugin in $plugins) {
+        $target = Join-Path $pluginsRoot $plugin.Name
+        if (Test-Path -LiteralPath (Join-Path $target '.git')) {
+            Write-Host "==> Updating MSYS2 zsh plugin $($plugin.Name)"
+            Invoke-DotfilesCommand 'git' @('-C', $target, 'pull', '--ff-only')
+        } else {
+            Write-Host "==> Installing MSYS2 zsh plugin $($plugin.Name)"
+            Invoke-DotfilesCommand 'git' @('clone', '--depth', '1', $plugin.Url, $target)
+        }
     }
 }
 

@@ -260,7 +260,8 @@ try {
     Assert-Test ($zshrcContent -match 'zsh-autosuggestions') 'zsh configuration loads zsh-autosuggestions'
     Assert-Test ($zshrcContent -match 'zsh-syntax-highlighting') 'zsh configuration loads zsh-syntax-highlighting'
     Assert-Test ($zshrcContent -match 'fzf --zsh') 'zsh configuration enables fzf key bindings'
-    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'windows-common.ps1') -Raw) -match 'zsh-autosuggestions zsh-syntax-highlighting') 'MSYS2 pacman installs the zsh autocomplete plugins'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-autosuggestions.git') 'MSYS2 setup installs the zsh-autosuggestions plugin from its repository'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-syntax-highlighting.git') 'MSYS2 setup installs the zsh-syntax-highlighting plugin from its repository'
     $profileContent = Get-Content -LiteralPath (Join-Path $root 'home/.config/powershell/Microsoft.PowerShell_profile.ps1') -Raw
     Assert-Test ($profileContent -match 'Set-DotfilesPSReadLineAutocomplete') 'PowerShell profile sets up PSReadLine autocomplete'
     Assert-Test ($profileContent -match 'InlinePrediction') 'PowerShell profile themes inline predictions'

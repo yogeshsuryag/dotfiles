@@ -382,8 +382,10 @@ test_msys2_zsh_setup() {
     || fail "zsh startup does not load zsh-syntax-highlighting"
   grep -Fq 'fzf --zsh' "$ROOT/home/.zshrc" \
     || fail "zsh startup does not enable fzf key bindings"
-  grep -Fq 'zsh-autosuggestions zsh-syntax-highlighting' "$ROOT/windows-common.sh" \
-    || fail "MSYS2 pacman does not install the zsh autocomplete plugins"
+  grep -Fq 'github.com/zsh-users/zsh-autosuggestions.git' "$ROOT/windows-common.sh" \
+    || fail "MSYS2 setup does not install the zsh-autosuggestions plugin from its repository"
+  grep -Fq 'github.com/zsh-users/zsh-syntax-highlighting.git' "$ROOT/windows-common.sh" \
+    || fail "MSYS2 setup does not install the zsh-syntax-highlighting plugin from its repository"
   grep -Fq 'Set-DotfilesPSReadLineAutocomplete' "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" \
     || fail "PowerShell profile does not set up PSReadLine autocomplete"
   grep -Fq 'InlinePrediction' "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" \

@@ -84,7 +84,7 @@ The bootstrap scripts are idempotent. Either frontend will:
 2. Install Scoop for the current user when needed.
 3. Add the configured Scoop buckets and install the configured packages.
 4. Install Herdr's Windows beta through its official installer when enabled.
-5. Install MSYS2 through Scoop and its zsh package with autocomplete plugins through pacman when `DOTFILES_INSTALL_ZSH=1` (the default).
+5. Install MSYS2 through Scoop, its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1` (the default).
 6. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
 7. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
 8. Apply only the Windows registry settings explicitly enabled in the config.
@@ -231,8 +231,9 @@ installs it through Scoop and applies the matching Tokyo Night or Rose Pine Moon
 theme in both PowerShell and zsh. Without it, Starship remains the prompt.
 
 Autocomplete is configured at the shell level, not in the prompt. The MSYS2
-pacman step installs `zsh-autosuggestions` and `zsh-syntax-highlighting` next to
-zsh, and `.zshrc` enables their plugins plus the fzf key bindings (Ctrl+R
+setup installs zsh through pacman and clones `zsh-autosuggestions` and
+`zsh-syntax-highlighting` from their official repositories next to zsh, and
+`.zshrc` enables their plugins plus the fzf key bindings (Ctrl+R
 searches history, Ctrl+T picks files, Alt+C jumps to a directory), all tinted
 to the selected theme. When a session stays in PowerShell instead, the profile
 configures PSReadLine with inline history predictions, a Tab completion menu,

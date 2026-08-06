@@ -238,13 +238,33 @@ dotfiles_invoke_msys2_pacman() {
     return 1
   }
 
-  echo '==> Installing or updating MSYS2 zsh and autocomplete plugins with pacman'
+  echo '==> Installing or updating MSYS2 zsh with pacman'
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
-    "$bash_path" --login -c 'pacman -S --needed --noconfirm zsh zsh-autosuggestions zsh-syntax-highlighting'
+    "$bash_path" --login -c 'pacman -S --needed --noconfirm zsh'
   [ -f "$zsh_path" ] || {
     echo "MSYS2 pacman completed but zsh was not found: $zsh_path" >&2
     return 1
   }
+
+  dotfiles_install_msys2_plugins "$msys2_root"
+}
+
+dotfiles_install_msys2_plugins() {
+  local msys2_root=$1 plugins_root target
+  plugins_root="$msys2_root/usr/share/zsh/plugins"
+  while read -r name url; do
+    target="$plugins_root/$name"
+    if [ -d "$target/.git" ]; then
+      echo "==> Updating MSYS2 zsh plugin $name"
+      git -C "$target" pull --ff-only || return 1
+    else
+      echo "==> Installing MSYS2 zsh plugin $name"
+      git clone --depth 1 "$url" "$target" || return 1
+    fi
+  done <<'EOF'
+zsh-autosuggestions https://github.com/zsh-users/zsh-autosuggestions.git
+zsh-syntax-highlighting https://github.com/zsh-users/zsh-syntax-highlighting.git
+EOF
 }
 
 dotfiles_zsh_remove_managed_block() {
