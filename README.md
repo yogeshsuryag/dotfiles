@@ -169,6 +169,7 @@ The most useful values are:
 - `DOTFILES_INSTALL_OH_MY_POSH` - opt in to the Oh My Posh prompt in PowerShell and zsh (installable through the setup UI)
 - `DOTFILES_OH_MY_POSH_THEME` - choose `tokyo-night-storm` (default) or `rose-pine-moon`
 - `DOTFILES_WINDOWS_HOME`, `DOTFILES_LOCAL_APPDATA`, and `DOTFILES_APPDATA` - override detected Windows paths; Git Bash and Windows path forms are accepted
+- `DOTFILES_CLAUDE_CONFIG_DIR` and the other `*_CONFIG_DIR` overrides - point an application at a custom config location; when overriding Claude's directory, also update the hard-coded `%USERPROFILE%` path in `home/.claude/settings.json` so the status line keeps working
 - `DOTFILES_LINK_MODE` - use junctions for directories and hard links for files by default, or symbolic links for all links
 - `DOTFILES_BACKUP_EXISTING` - preserve real targets before linking
 - `DOTFILES_APPLY_WINDOWS_SETTINGS` - master switch for registry changes

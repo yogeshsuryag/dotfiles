@@ -65,6 +65,10 @@ test_native_power_shell_suite() {
 }
 
 test_json_and_status_line() {
+  if ! command -v node >/dev/null 2>&1; then
+    echo "skip: node not found for JSON and status line checks"
+    return 0
+  fi
   node --check "$ROOT/home/.claude/status-line.js"
   node --check "$ROOT/home/.pi/agent/extensions/terminal-status-title.js"
   local output

@@ -98,6 +98,14 @@ function New-DotfilesLink([string] $Source, [string] $Target, [ValidateSet('Dire
         throw "Source does not exist: $Source"
     }
 
+    if ($LinkMode -eq 'junction' -and $Kind -eq 'File') {
+        $sourceRoot = [System.IO.Path]::GetPathRoot((Normalize-Path $Source))
+        $targetRoot = [System.IO.Path]::GetPathRoot((Normalize-Path $Target))
+        if (-not [string]::Equals($sourceRoot, $targetRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Hard links require the repository and the target on the same volume (source: $sourceRoot, target: $targetRoot). Move the repository to the same volume as the Windows profile, or set DOTFILES_LINK_MODE=symbolic."
+        }
+    }
+
     Ensure-Parent $Target
     $existing = Get-Item -LiteralPath $Target -Force -ErrorAction SilentlyContinue
     if ($null -ne $existing) {
