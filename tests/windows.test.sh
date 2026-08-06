@@ -372,6 +372,22 @@ test_msys2_zsh_setup() {
     || fail "Tokyo Night Oh My Posh theme is missing"
   [ -f "$ROOT/home/.config/oh-my-posh/rose-pine-moon.omp.json" ] \
     || fail "Rose Pine Moon Oh My Posh theme is missing"
+  grep -Fq 'zsh-autosuggestions' "$ROOT/home/.zshrc" \
+    || fail "zsh startup does not load zsh-autosuggestions"
+  grep -Fq 'zsh-syntax-highlighting' "$ROOT/home/.zshrc" \
+    || fail "zsh startup does not load zsh-syntax-highlighting"
+  grep -Fq 'fzf --zsh' "$ROOT/home/.zshrc" \
+    || fail "zsh startup does not enable fzf key bindings"
+  grep -Fq 'zsh-autosuggestions zsh-syntax-highlighting' "$ROOT/windows-common.sh" \
+    || fail "MSYS2 pacman does not install the zsh autocomplete plugins"
+  grep -Fq 'Set-DotfilesPSReadLineAutocomplete' "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" \
+    || fail "PowerShell profile does not set up PSReadLine autocomplete"
+  grep -Fq 'InlinePrediction' "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" \
+    || fail "PowerShell profile does not theme inline predictions"
+  grep -Fq '"type": "node"' "$ROOT/home/.config/oh-my-posh/tokyo-night-storm.omp.json" \
+    || fail "Tokyo Night Oh My Posh theme lacks the node segment"
+  grep -Fq '"type": "execution_time"' "$ROOT/home/.config/oh-my-posh/rose-pine-moon.omp.json" \
+    || fail "Rose Pine Moon Oh My Posh theme lacks the execution time segment"
   pass "MSYS2 discovery, zsh defaults, and PowerShell prompt configuration are validated"
 }
 

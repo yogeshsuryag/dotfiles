@@ -188,6 +188,128 @@ function zsh {
 Initialize-DotfilesOhMyPosh
 
 $interactiveConsole = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected
+
+# Theme palettes mirroring the oh-my-posh themes, so PSReadLine tokens,
+# predictions, and errors share the Tokyo Night or Rose Pine colors.
+$script:DotfilesThemePalettes = @{
+    'tokyo-night-storm' = @{
+        Command = '#c0caf5'
+        Parameter = '#c0caf5'
+        String = '#9ece6a'
+        Comment = '#565f89'
+        Error = '#f7768e'
+        Keyword = '#bb9af7'
+        Selection = '#33467c'
+        Operator = '#89ddff'
+        Variable = '#7dcfff'
+        Number = '#ff9e64'
+        Type = '#2ac3de'
+        Punctuation = '#c0caf5'
+        Prompt = '#7aa2f7'
+        Prediction = '#565f89'
+        LegacyForeground = 'White'
+        LegacyBackground = 'DarkBlue'
+        LegacyPrompt = 'DarkCyan'
+        LegacyPrediction = 'DarkGray'
+        LegacyError = 'Red'
+        LegacyComment = 'DarkGray'
+        LegacyString = 'DarkYellow'
+        LegacyKeyword = 'Cyan'
+    }
+    'rose-pine-moon' = @{
+        Command = '#e0def4'
+        Parameter = '#e0def4'
+        String = '#9ccfd8'
+        Comment = '#6e6a86'
+        Error = '#eb6f92'
+        Keyword = '#c4a7e7'
+        Selection = '#44415a'
+        Operator = '#e0def4'
+        Variable = '#f6c177'
+        Number = '#f6c177'
+        Type = '#3e8fb0'
+        Punctuation = '#e0def4'
+        Prompt = '#c4a7e7'
+        Prediction = '#6e6a86'
+        LegacyForeground = 'White'
+        LegacyBackground = 'DarkBlue'
+        LegacyPrompt = 'DarkCyan'
+        LegacyPrediction = 'DarkGray'
+        LegacyError = 'Red'
+        LegacyComment = 'DarkGray'
+        LegacyString = 'DarkYellow'
+        LegacyKeyword = 'Cyan'
+    }
+}
+
+function Set-DotfilesPSReadLineTheme {
+    param([string] $Theme)
+
+    $palette = $script:DotfilesThemePalettes[$Theme]
+    if ($null -eq $palette) {
+        $palette = $script:DotfilesThemePalettes['tokyo-night-storm']
+    }
+
+    $psReadLineModule = Get-Module PSReadLine -ErrorAction SilentlyContinue
+    if ($null -ne $psReadLineModule -and $psReadLineModule.Version -ge [version] '2.2.0') {
+        Set-PSReadLineOption -Colors @{
+            Command = $palette.Command
+            Parameter = $palette.Parameter
+            String = $palette.String
+            Comment = $palette.Comment
+            Error = $palette.Error
+            Keyword = $palette.Keyword
+            Selection = $palette.Selection
+            Operator = $palette.Operator
+            Variable = $palette.Variable
+            Number = $palette.Number
+            Type = $palette.Type
+            Punctuation = $palette.Punctuation
+            Prompt = $palette.Prompt
+            InlinePrediction = $palette.Prediction
+        } -ErrorAction SilentlyContinue
+    } elseif ($null -ne $psReadLineModule) {
+        Set-PSReadLineOption -Colors @{
+            Command = $palette.LegacyForeground
+            Parameter = $palette.LegacyForeground
+            String = $palette.LegacyString
+            Comment = $palette.LegacyComment
+            Error = $palette.LegacyError
+            Keyword = $palette.LegacyKeyword
+            Selection = $palette.LegacyBackground
+            Prompt = $palette.LegacyPrompt
+            InlinePrediction = $palette.LegacyPrediction
+        } -ErrorAction SilentlyContinue
+    }
+
+    if ($PSStyle) {
+        $PSStyle.Formatting.Error = $PSStyle.Foreground.FromRgb(247, 118, 142)
+        if ($Theme -eq 'rose-pine-moon') {
+            $PSStyle.Formatting.Error = $PSStyle.Foreground.FromRgb(235, 111, 146)
+        }
+    }
+}
+
+function Set-DotfilesPSReadLineAutocomplete {
+    $psReadLineModule = Get-Module PSReadLine -ErrorAction SilentlyContinue
+    if ($null -eq $psReadLineModule) {
+        return
+    }
+
+    Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete -ErrorAction SilentlyContinue
+    Set-PSReadLineOption -HistorySearchCursorMovesToEnd $true -ShowToolTips $true -ErrorAction SilentlyContinue
+    if ($psReadLineModule.Version -ge [version] '2.2.0') {
+        Set-PSReadLineOption -PredictionSource HistoryAndPlugin -PredictionViewStyle InlineView -ErrorAction SilentlyContinue
+    } else {
+        Set-PSReadLineOption -PredictionSource History -ErrorAction SilentlyContinue
+    }
+}
+
+if ($interactiveConsole) {
+    Set-DotfilesPSReadLineTheme (Get-DotfilesProfileValue 'DOTFILES_OH_MY_POSH_THEME' 'tokyo-night-storm')
+    Set-DotfilesPSReadLineAutocomplete
+}
+
 $shouldStartZsh = (Get-DotfilesProfileValue 'DOTFILES_DEFAULT_SHELL' 'zsh') -eq 'zsh' -and
     (Get-DotfilesProfileValue 'DOTFILES_INSTALL_ZSH' '1') -eq '1' -and
     $env:DOTFILES_ZSH_ACTIVE -ne '1' -and $env:DOTFILES_NO_ZSH -ne '1'

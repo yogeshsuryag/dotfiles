@@ -8,6 +8,12 @@
       "alignment": "left",
       "segments": [
         {
+          "type": "os",
+          "style": "plain",
+          "foreground": "#9ccfd8",
+          "template": "{{ .Icon }} "
+        },
+        {
           "type": "path",
           "style": "plain",
           "foreground": "#c4a7e7",
@@ -17,7 +23,13 @@
           "type": "git",
           "style": "plain",
           "foreground": "#eb6f92",
-          "template": "{{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }} *{{ end }} "
+          "template": "{{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }} +{{ .Working.Changed }}{{ end }}{{ if .Staging.Changed }} ~{{ .Staging.Changed }}{{ end }}{{ if .Conflicts }} ={{ .Conflicts }}{{ end }}{{ if .Stash.Count }} [{{ .Stash.Count }}]{{ end }} "
+        },
+        {
+          "type": "node",
+          "style": "plain",
+          "foreground": "#f6c177",
+          "template": "{{ if .Full }}⬢ {{ .Full }} {{ end }}"
         },
         {
           "type": "status",
@@ -40,6 +52,15 @@
       "type": "prompt",
       "alignment": "right",
       "segments": [
+        {
+          "type": "execution_time",
+          "style": "plain",
+          "foreground": "#6e6a86",
+          "template": "{{ .FormattedMs }} ",
+          "properties": {
+            "threshold": 2000
+          }
+        },
         {
           "type": "time",
           "style": "plain",

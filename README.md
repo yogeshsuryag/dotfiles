@@ -11,6 +11,7 @@ Running the bootstrap installs and configures:
 - Git for Windows and Git Bash
 - Neovim with the rose-pine moon theme and locked lazy.nvim plugins
 - PowerShell profiles that launch MSYS2 zsh by default (or PowerShell itself when `DOTFILES_DEFAULT_SHELL=powershell`), with an optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors
+- Shell autocomplete: zsh-autosuggestions, zsh-syntax-highlighting, and fzf in zsh; PSReadLine inline predictions in PowerShell
 - Starship with the shared prompt configuration as the fallback prompt
 - ripgrep, fd, fzf, jq, lazygit, Node.js, and Hack Nerd Font
 - MSYS2 zsh launched from PowerShell through `msys2_shell.cmd`
@@ -83,7 +84,7 @@ The bootstrap scripts are idempotent. Either frontend will:
 2. Install Scoop for the current user when needed.
 3. Add the configured Scoop buckets and install the configured packages.
 4. Install Herdr's Windows beta through its official installer when enabled.
-5. Install MSYS2 through Scoop and its zsh package through pacman when `DOTFILES_INSTALL_ZSH=1` (the default).
+5. Install MSYS2 through Scoop and its zsh package with autocomplete plugins through pacman when `DOTFILES_INSTALL_ZSH=1` (the default).
 6. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
 7. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
 8. Apply only the Windows registry settings explicitly enabled in the config.
@@ -163,7 +164,7 @@ The most useful values are:
 - `DOTFILES_NERD_FONTS_BUCKET_URL` - the Nerd Fonts bucket source
 - `DOTFILES_INSTALL_HERDR` - enable or disable the Herdr Windows installer
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
-- `DOTFILES_INSTALL_ZSH` - install Scoop MSYS2 and pacman zsh, which the PowerShell profile launches by default
+- `DOTFILES_INSTALL_ZSH` - install Scoop MSYS2 and pacman zsh with the autocomplete plugins, which the PowerShell profile launches by default
 - `DOTFILES_DEFAULT_SHELL` - choose `zsh` (default) or `powershell` as the shell new terminals launch
 - `DOTFILES_INSTALL_OH_MY_POSH` - opt in to the Oh My Posh prompt in PowerShell and zsh (installable through the setup UI)
 - `DOTFILES_OH_MY_POSH_THEME` - choose `tokyo-night-storm` (default) or `rose-pine-moon`
@@ -227,6 +228,15 @@ the environment, aliases, and prompt setup with the rest of the configuration.
 Selecting Oh My Posh in the setup UI (or setting `DOTFILES_INSTALL_OH_MY_POSH=1`)
 installs it through Scoop and applies the matching Tokyo Night or Rose Pine Moon
 theme in both PowerShell and zsh. Without it, Starship remains the prompt.
+
+Autocomplete is configured at the shell level, not in the prompt. The MSYS2
+pacman step installs `zsh-autosuggestions` and `zsh-syntax-highlighting` next to
+zsh, and `.zshrc` enables their plugins plus the fzf key bindings (Ctrl+R
+searches history, Ctrl+T picks files, Alt+C jumps to a directory), all tinted
+to the selected theme. When a session stays in PowerShell instead, the profile
+configures PSReadLine with inline history predictions, a Tab completion menu,
+and token colors from the same palettes; older PSReadLine versions fall back to
+history prediction with console colors.
 
 ## Testing
 

@@ -238,9 +238,9 @@ dotfiles_invoke_msys2_pacman() {
     return 1
   }
 
-  echo '==> Installing or updating MSYS2 zsh with pacman'
+  echo '==> Installing or updating MSYS2 zsh and autocomplete plugins with pacman'
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
-    "$bash_path" --login -c 'pacman -S --needed --noconfirm zsh'
+    "$bash_path" --login -c 'pacman -S --needed --noconfirm zsh zsh-autosuggestions zsh-syntax-highlighting'
   [ -f "$zsh_path" ] || {
     echo "MSYS2 pacman completed but zsh was not found: $zsh_path" >&2
     return 1

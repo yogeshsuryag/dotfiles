@@ -567,11 +567,11 @@ function Invoke-DotfilesMsys2Pacman {
         throw "MSYS2 bash was not found: $bashPath"
     }
 
-    Write-Host '==> Installing or updating MSYS2 zsh with pacman'
+    Write-Host '==> Installing or updating MSYS2 zsh and autocomplete plugins with pacman'
     $previousArgumentConversion = $env:MSYS2_ARG_CONV_EXCL
     $env:MSYS2_ARG_CONV_EXCL = '*'
     try {
-        & $bashPath '--login' '-c' 'pacman -S --needed --noconfirm zsh'
+        & $bashPath '--login' '-c' 'pacman -S --needed --noconfirm zsh zsh-autosuggestions zsh-syntax-highlighting'
         $exitCode = $LASTEXITCODE
     } finally {
         if ($null -eq $previousArgumentConversion) {

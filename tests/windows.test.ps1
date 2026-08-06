@@ -256,6 +256,18 @@ try {
     Assert-Test ((Get-Content -LiteralPath $zshStartup -Raw) -notmatch 'dotfiles managed MSYS2 zsh startup') 'MSYS2 zsh startup removal removes only the managed block'
     Pass-Test 'MSYS2 discovery and zsh startup are repeatable and removable'
 
+    $zshrcContent = Get-Content -LiteralPath (Join-Path $root 'home/.zshrc') -Raw
+    Assert-Test ($zshrcContent -match 'zsh-autosuggestions') 'zsh configuration loads zsh-autosuggestions'
+    Assert-Test ($zshrcContent -match 'zsh-syntax-highlighting') 'zsh configuration loads zsh-syntax-highlighting'
+    Assert-Test ($zshrcContent -match 'fzf --zsh') 'zsh configuration enables fzf key bindings'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'windows-common.ps1') -Raw) -match 'zsh-autosuggestions zsh-syntax-highlighting') 'MSYS2 pacman installs the zsh autocomplete plugins'
+    $profileContent = Get-Content -LiteralPath (Join-Path $root 'home/.config/powershell/Microsoft.PowerShell_profile.ps1') -Raw
+    Assert-Test ($profileContent -match 'Set-DotfilesPSReadLineAutocomplete') 'PowerShell profile sets up PSReadLine autocomplete'
+    Assert-Test ($profileContent -match 'InlinePrediction') 'PowerShell profile themes inline predictions'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/tokyo-night-storm.omp.json') -Raw) -match '"type": "node"') 'Tokyo Night theme includes the node segment'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/rose-pine-moon.omp.json') -Raw) -match '"type": "execution_time"') 'Rose Pine theme includes the execution time segment'
+    Pass-Test 'Shell autocomplete and themed prompt configuration are validated'
+
     Write-Host "1..$passed"
 } catch {
     Write-Error "not ok - $($_.Exception.Message)"
