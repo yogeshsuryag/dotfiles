@@ -654,6 +654,18 @@ function Remove-DotfilesZshStartup {
     Set-DotfilesTextFile $target (($clean.TrimEnd("`n") + "`n"))
 }
 
+function Remove-DotfilesMsys2Plugins {
+    param([Parameter(Mandatory = $true)] [string] $Msys2Root)
+
+    foreach ($name in @('zsh-autosuggestions', 'zsh-syntax-highlighting')) {
+        $target = Join-Path (Join-Path $Msys2Root 'usr/share/zsh/plugins') $name
+        if (Test-Path -LiteralPath $target) {
+            Write-Host "==> Removing MSYS2 zsh plugin $name"
+            Remove-Item -LiteralPath $target -Recurse -Force
+        }
+    }
+}
+
 function Install-DotfilesZsh {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
@@ -661,6 +673,7 @@ function Install-DotfilesZsh {
         $existingRoot = Get-DotfilesMsys2Root
         if ($existingRoot) {
             Remove-DotfilesZshStartup $existingRoot
+            Remove-DotfilesMsys2Plugins $existingRoot
         }
         return
     }

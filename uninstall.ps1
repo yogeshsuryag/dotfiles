@@ -71,6 +71,7 @@ try {
     if ($msys2Root) {
         Write-Host '==> Removing the managed MSYS2 zsh startup block'
         Remove-DotfilesZshStartup $msys2Root
+        Remove-DotfilesMsys2Plugins $msys2Root
     }
 
     Write-Host 'Windows dotfiles uninstall complete.'

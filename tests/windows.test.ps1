@@ -254,8 +254,15 @@ try {
     Assert-Test ($zshStartupContent -match 'DOTFILES_ZSH_ACTIVE') 'MSYS2 zsh startup exports the PowerShell recursion guard'
     Remove-DotfilesZshStartup $discoveredMsys2Root
     Assert-Test ((Get-Content -LiteralPath $zshStartup -Raw) -notmatch 'dotfiles managed MSYS2 zsh startup') 'MSYS2 zsh startup removal removes only the managed block'
+    $pluginFixture = Join-Path $msys2Root 'usr/share/zsh/plugins'
+    New-Item -ItemType Directory -Path (Join-Path $pluginFixture 'zsh-autosuggestions') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $pluginFixture 'zsh-syntax-highlighting') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $pluginFixture 'zsh-autosuggestions/zsh-autosuggestions.zsh') -Value 'fixture' -NoNewline
+    Set-Content -LiteralPath (Join-Path $pluginFixture 'zsh-syntax-highlighting/zsh-syntax-highlighting.zsh') -Value 'fixture' -NoNewline
+    Remove-DotfilesMsys2Plugins $discoveredMsys2Root
+    Assert-Test (-not (Test-Path -LiteralPath (Join-Path $pluginFixture 'zsh-autosuggestions'))) 'MSYS2 plugin removal removes zsh-autosuggestions'
+    Assert-Test (-not (Test-Path -LiteralPath (Join-Path $pluginFixture 'zsh-syntax-highlighting'))) 'MSYS2 plugin removal removes zsh-syntax-highlighting'
     Pass-Test 'MSYS2 discovery and zsh startup are repeatable and removable'
-
     $zshrcContent = Get-Content -LiteralPath (Join-Path $root 'home/.zshrc') -Raw
     Assert-Test ($zshrcContent -match 'zsh-autosuggestions') 'zsh configuration loads zsh-autosuggestions'
     Assert-Test ($zshrcContent -match 'zsh-syntax-highlighting') 'zsh configuration loads zsh-syntax-highlighting'

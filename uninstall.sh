@@ -119,6 +119,7 @@ echo "==> Removing the managed MSYS2 zsh startup block"
 msys2_root="$(dotfiles_find_msys2_root 2>/dev/null || true)"
 if [ -n "$msys2_root" ]; then
   dotfiles_zsh_remove_managed_block "$(dotfiles_msys2_startup_path "$msys2_root")"
+  dotfiles_remove_msys2_plugins "$msys2_root"
 fi
 
 echo "Windows dotfiles uninstall complete."

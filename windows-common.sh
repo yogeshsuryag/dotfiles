@@ -305,12 +305,23 @@ dotfiles_install_zsh_startup() {
   mv -f "$temporary" "$target"
 }
 
+dotfiles_remove_msys2_plugins() {
+  local msys2_root=$1 plugin
+  for plugin in zsh-autosuggestions zsh-syntax-highlighting; do
+    if [ -e "$msys2_root/usr/share/zsh/plugins/$plugin" ]; then
+      echo "==> Removing MSYS2 zsh plugin $plugin"
+      rm -rf "$msys2_root/usr/share/zsh/plugins/$plugin"
+    fi
+  done
+}
+
 dotfiles_install_zsh() {
   local existing_root msys2_root
   if [ "$DOTFILES_INSTALL_ZSH" != 1 ]; then
     existing_root="$(dotfiles_find_msys2_root 2>/dev/null || true)"
     if [ -n "$existing_root" ]; then
       dotfiles_zsh_remove_managed_block "$(dotfiles_msys2_startup_path "$existing_root")"
+      dotfiles_remove_msys2_plugins "$existing_root"
     fi
     return 0
   fi

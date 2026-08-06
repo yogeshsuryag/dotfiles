@@ -358,6 +358,27 @@ test_msys2_zsh_setup() {
     ! grep -Fq 'dotfiles managed MSYS2 zsh startup' "$startup"
   ) || fail "MSYS2 discovery and zsh startup helpers failed"
 
+  (
+    export DOTFILES_ROOT="$ROOT"
+    export DOTFILES_WINDOWS_HOME="$TMP_ROOT/windows-home"
+    export DOTFILES_DOTFILES_LINK="$ROOT"
+    export DOTFILES_PI_AGENT_DIR="$TMP_ROOT/windows-home/.pi/agent"
+    export DOTFILES_EDITOR=nvim
+    export DOTFILES_VISUAL=nvim
+    export DOTFILES_INSTALL_ZSH=1
+    export USERNAME=dotfiles-test-user
+    # shellcheck source=../windows-common.sh
+    . "$ROOT/windows-common.sh"
+    plugin_root="$msys2_root/usr/share/zsh/plugins"
+    mkdir -p "$plugin_root/zsh-autosuggestions" "$plugin_root/zsh-syntax-highlighting"
+    touch "$plugin_root/zsh-autosuggestions/zsh-autosuggestions.zsh" \
+      "$plugin_root/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+    dotfiles_remove_msys2_plugins "$msys2_root"
+    [ ! -e "$plugin_root/zsh-autosuggestions" ] || exit 1
+    [ ! -e "$plugin_root/zsh-syntax-highlighting" ] || exit 1
+    dotfiles_remove_msys2_plugins "$msys2_root"
+  ) || fail "MSYS2 zsh plugin removal helpers failed"
+
   grep -Fq 'eval "$(starship init zsh)"' "$ROOT/home/.zshrc" \
     || fail "zsh startup does not fall back to Starship"
   grep -Fq 'oh-my-posh init zsh' "$ROOT/home/.zshrc" \
