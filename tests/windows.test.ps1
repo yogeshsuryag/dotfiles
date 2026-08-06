@@ -111,6 +111,7 @@ try {
     Initialize-DotfilesConfigDefaults $config | Out-Null
     Assert-DotfilesConfig $config
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '1') 'MSYS2 zsh is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_DEFAULT_SHELL -eq 'zsh') 'zsh is the default shell'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the default prompt theme'
     $config.DOTFILES_EDITOR = 'C:\Program Files\Editor\editor.exe "$HOME"'
     $roundTripPath = Join-Path $testRoot 'roundtrip.env'
@@ -161,6 +162,10 @@ try {
     Assert-Test ([string] $stateConfig.DOTFILES_INSTALL_OH_MY_POSH -eq '1') 'PowerShell TUI enables Oh My Posh with the package choice'
     $state.Page = 3
     Set-DotfilesTuiItems $state
+    $shellItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_DEFAULT_SHELL' })[0]
+    Assert-Test ($shellItem.Kind -eq 'choice') 'PowerShell TUI exposes the default shell choice'
+    Toggle-DotfilesTuiItem $state $shellItem
+    Assert-Test ($stateConfig.DOTFILES_DEFAULT_SHELL -eq 'powershell') 'PowerShell TUI toggles the default shell'
     $themeItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_OH_MY_POSH_THEME' })[0]
     Assert-Test ($themeItem.Kind -eq 'choice') 'PowerShell TUI exposes the prompt theme choice'
     Toggle-DotfilesTuiItem $state $themeItem

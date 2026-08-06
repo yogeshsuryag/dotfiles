@@ -29,6 +29,7 @@ dotfiles_apply_config_defaults() {
   DOTFILES_HERDR_INSTALL_URL="${DOTFILES_HERDR_INSTALL_URL:-https://herdr.dev/install.ps1}"
   DOTFILES_INSTALL_AGENT_CLIS="${DOTFILES_INSTALL_AGENT_CLIS:-0}"
   DOTFILES_INSTALL_ZSH="${DOTFILES_INSTALL_ZSH:-1}"
+  DOTFILES_DEFAULT_SHELL="${DOTFILES_DEFAULT_SHELL:-zsh}"
   DOTFILES_INSTALL_OH_MY_POSH="${DOTFILES_INSTALL_OH_MY_POSH:-0}"
   DOTFILES_OH_MY_POSH_THEME="${DOTFILES_OH_MY_POSH_THEME:-tokyo-night-storm}"
   DOTFILES_LINK_MODE="${DOTFILES_LINK_MODE:-junction}"
@@ -232,6 +233,8 @@ dotfiles_tui_choice_label() {
     DOTFILES_LINK_MODE:symbolic) printf 'Symbolic links' ;;
     DOTFILES_OH_MY_POSH_THEME:tokyo-night-storm) printf 'Tokyo Night (recommended)' ;;
     DOTFILES_OH_MY_POSH_THEME:rose-pine-moon) printf 'Rose Pine Moon' ;;
+    DOTFILES_DEFAULT_SHELL:zsh) printf 'Zsh (recommended)' ;;
+    DOTFILES_DEFAULT_SHELL:powershell) printf 'PowerShell' ;;
     *) printf '%s' "$2" ;;
   esac
 }
@@ -282,7 +285,7 @@ dotfiles_tui_load_items() {
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_HERDR 'Install Herdr' "Install Herdr's Windows beta using the source below when it is not already available."
       dotfiles_tui_add_item text DOTFILES_HERDR_INSTALL_URL 'Herdr installer source' 'PowerShell installer URL used for the optional Herdr installation.'
       dotfiles_tui_add_item toggle DOTFILES_INSTALL_AGENT_CLIS 'Install optional AI command-line tools' 'Install Claude, Codex, Pi, and opencode with npm. Credentials remain local to each tool.'
-      dotfiles_tui_add_item toggle DOTFILES_INSTALL_ZSH 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the PowerShell default shell. Git Bash stays independent.'
+      dotfiles_tui_add_item toggle DOTFILES_INSTALL_ZSH 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the default shell. Git Bash stays independent.'
       dotfiles_tui_add_action back 'Back to tools and packages' 'Return to the previous section without losing these choices.'
       dotfiles_tui_add_action next 'Continue to file locations' 'Open the detected Windows paths and application locations.'
       ;;
@@ -302,6 +305,7 @@ dotfiles_tui_load_items() {
       dotfiles_tui_add_action next 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
       ;;
     3)
+      dotfiles_tui_add_item choice DOTFILES_DEFAULT_SHELL 'Default shell' 'The shell new terminals launch. Zsh runs through MSYS2 with the full Windows PATH; PowerShell keeps native commands and enters zsh with the zsh function.'
       dotfiles_tui_add_item choice DOTFILES_OH_MY_POSH_THEME 'Prompt theme' 'Choose between the Tokyo Night and Rose Pine prompt color schemes.'
       dotfiles_tui_add_item choice DOTFILES_LINK_MODE 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
       dotfiles_tui_add_item toggle DOTFILES_BACKUP_EXISTING 'Back up existing files' 'Move real files and directories aside before creating managed links.'
@@ -434,6 +438,8 @@ dotfiles_tui_render_summary() {
     "$(dotfiles_tui_item_value toggle DOTFILES_INSTALL_OH_MY_POSH)" > "$DOTFILES_TUI_TTY"
   printf '  Main home: %s\n' "$(dotfiles_tui_clip "$DOTFILES_WINDOWS_HOME" 68)" > "$DOTFILES_TUI_TTY"
   printf '  Repository link: %s\n' "$(dotfiles_tui_clip "$DOTFILES_DOTFILES_LINK" 68)" > "$DOTFILES_TUI_TTY"
+  printf '  Default shell: %s\n' \
+    "$(dotfiles_tui_choice_label DOTFILES_DEFAULT_SHELL "$DOTFILES_DEFAULT_SHELL")" > "$DOTFILES_TUI_TTY"
   printf '  Prompt theme: %s\n' \
     "$(dotfiles_tui_choice_label DOTFILES_OH_MY_POSH_THEME "$DOTFILES_OH_MY_POSH_THEME")" > "$DOTFILES_TUI_TTY"
   printf '  Linking: %s, backups %s, Git Bash integration %s\n' \
@@ -597,6 +603,8 @@ dotfiles_tui_toggle_item() {
     choice)
       if [ "$key" = DOTFILES_OH_MY_POSH_THEME ]; then
         if [ "${!key}" = tokyo-night-storm ]; then printf -v "$key" '%s' rose-pine-moon; else printf -v "$key" '%s' tokyo-night-storm; fi
+      elif [ "$key" = DOTFILES_DEFAULT_SHELL ]; then
+        if [ "${!key}" = zsh ]; then printf -v "$key" '%s' powershell; else printf -v "$key" '%s' zsh; fi
       elif [ "${!key}" = junction ]; then
         printf -v "$key" '%s' symbolic
       else
@@ -724,6 +732,7 @@ dotfiles_tui_write_config() {
     dotfiles_write_config_value DOTFILES_SCOOP_PACKAGES
     dotfiles_write_config_value DOTFILES_UPDATE_SCOOP
     dotfiles_write_config_value DOTFILES_INSTALL_ZSH
+    dotfiles_write_config_value DOTFILES_DEFAULT_SHELL
     dotfiles_write_config_value DOTFILES_INSTALL_OH_MY_POSH
     dotfiles_write_config_value DOTFILES_OH_MY_POSH_THEME
     dotfiles_write_config_value DOTFILES_INSTALL_HERDR

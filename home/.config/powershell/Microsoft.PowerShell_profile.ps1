@@ -167,21 +167,38 @@ function Find-DotfilesMsys2Shell {
     return $null
 }
 
+function Start-DotfilesZsh {
+    $msys2Shell = Find-DotfilesMsys2Shell
+    if (-not $msys2Shell) {
+        Write-Warning 'MSYS2 zsh was not found. Install it with Scoop or set DOTFILES_INSTALL_ZSH=1.'
+        return
+    }
+    $env:DOTFILES_ZSH_ACTIVE = '1'
+    $env:DOTFILES_INSTALL_ZSH = '1'
+    $env:DOTFILES_INSTALL_OH_MY_POSH = Get-DotfilesProfileValue 'DOTFILES_INSTALL_OH_MY_POSH' '0'
+    $env:DOTFILES_OH_MY_POSH_THEME = Get-DotfilesProfileValue 'DOTFILES_OH_MY_POSH_THEME' 'tokyo-night-storm'
+    & $msys2Shell '-defterm' '-here' '-no-start' '-use-full-path' '-msys' '-shell' 'zsh'
+    return $LASTEXITCODE
+}
+
+function zsh {
+    return Start-DotfilesZsh
+}
+
 Initialize-DotfilesOhMyPosh
 
 $interactiveConsole = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected
-$shouldStartZsh = (Get-DotfilesProfileValue 'DOTFILES_INSTALL_ZSH' '1') -eq '1' -and
+$shouldStartZsh = (Get-DotfilesProfileValue 'DOTFILES_DEFAULT_SHELL' 'zsh') -eq 'zsh' -and
+    (Get-DotfilesProfileValue 'DOTFILES_INSTALL_ZSH' '1') -eq '1' -and
     $env:DOTFILES_ZSH_ACTIVE -ne '1' -and $env:DOTFILES_NO_ZSH -ne '1'
 if ($interactiveConsole -and $shouldStartZsh) {
-    $msys2Shell = Find-DotfilesMsys2Shell
-    if ($msys2Shell) {
-        $env:DOTFILES_ZSH_ACTIVE = '1'
-        $env:DOTFILES_INSTALL_ZSH = '1'
-        $env:DOTFILES_INSTALL_OH_MY_POSH = Get-DotfilesProfileValue 'DOTFILES_INSTALL_OH_MY_POSH' '0'
-        $env:DOTFILES_OH_MY_POSH_THEME = Get-DotfilesProfileValue 'DOTFILES_OH_MY_POSH_THEME' 'tokyo-night-storm'
-        & $msys2Shell '-defterm' '-here' '-no-start' '-msys' '-shell' 'zsh'
-        $exitCode = $LASTEXITCODE
-        exit $exitCode
+    $zshExitCode = Start-DotfilesZsh
+    if ($null -ne $zshExitCode) {
+        exit $zshExitCode
     }
     Write-Warning 'MSYS2 zsh was not found; continuing with native PowerShell.'
+}
+if ($interactiveConsole -and (Get-DotfilesProfileValue 'DOTFILES_DEFAULT_SHELL' 'zsh') -eq 'powershell' -and
+    (Get-DotfilesProfileValue 'DOTFILES_INSTALL_ZSH' '1') -eq '1') {
+    Write-Host 'Hint: type "zsh" to enter MSYS2 zsh, or set DOTFILES_DEFAULT_SHELL=zsh to launch it automatically.'
 }

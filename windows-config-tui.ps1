@@ -131,7 +131,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_HERDR' 'Install Herdr' "Install Herdr's Windows beta using the source below when it is not already available."
             Add-DotfilesTuiItem $State 'text' 'DOTFILES_HERDR_INSTALL_URL' 'Herdr installer source' 'PowerShell installer URL used for the optional Herdr installation.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_AGENT_CLIS' 'Install optional AI command-line tools' 'Install Claude, Codex, Pi, and opencode with npm. Credentials remain local to each tool.'
-            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_ZSH' 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the PowerShell default shell. Git Bash stays independent.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_ZSH' 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the default shell. Git Bash stays independent.'
             Add-DotfilesTuiAction $State 'back' 'Back to tools and packages' 'Return to the previous section without losing these choices.'
             Add-DotfilesTuiAction $State 'next' 'Continue to file locations' 'Open the detected Windows paths and application locations.'
         }
@@ -151,6 +151,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiAction $State 'next' 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
         }
         3 {
+            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_DEFAULT_SHELL' 'Default shell' 'The shell new terminals launch. Zsh runs through MSYS2 with the full Windows PATH; PowerShell keeps native commands and enters zsh with the zsh function.'
             Add-DotfilesTuiItem $State 'choice' 'DOTFILES_OH_MY_POSH_THEME' 'Prompt theme' 'Choose between the Tokyo Night and Rose Pine prompt color schemes.'
             Add-DotfilesTuiItem $State 'choice' 'DOTFILES_LINK_MODE' 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_BACKUP_EXISTING' 'Back up existing files' 'Move real files and directories aside before creating managed links.'
@@ -215,6 +216,8 @@ function Get-DotfilesTuiChoiceLabel {
     if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'symbolic') { return 'Symbolic links' }
     if ($Key -eq 'DOTFILES_OH_MY_POSH_THEME' -and $Value -eq 'tokyo-night-storm') { return 'Tokyo Night (recommended)' }
     if ($Key -eq 'DOTFILES_OH_MY_POSH_THEME' -and $Value -eq 'rose-pine-moon') { return 'Rose Pine Moon' }
+    if ($Key -eq 'DOTFILES_DEFAULT_SHELL' -and $Value -eq 'zsh') { return 'Zsh (recommended)' }
+    if ($Key -eq 'DOTFILES_DEFAULT_SHELL' -and $Value -eq 'powershell') { return 'PowerShell' }
     return $Value
 }
 
@@ -331,6 +334,7 @@ function Write-DotfilesTuiSummary {
     Write-Host ("  Installers: Herdr {0}, AI tools {1}, MSYS2 zsh {2}, Oh My Posh {3}" -f $herdrState, $agentState, $zshState, $ohMyPoshState)
     Write-Host ("  Main home: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_WINDOWS_HOME 68))
     Write-Host ("  Repository link: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_DOTFILES_LINK 68))
+    Write-Host ("  Default shell: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_DEFAULT_SHELL' $State.Config.DOTFILES_DEFAULT_SHELL))
     Write-Host ("  Prompt theme: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_OH_MY_POSH_THEME' $State.Config.DOTFILES_OH_MY_POSH_THEME))
     Write-Host ("  Linking: {0}, backups {1}, Git Bash integration {2}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_LINK_MODE' $State.Config.DOTFILES_LINK_MODE), $backupState, $hookState)
     Write-Host ("  Windows settings: {0}" -f $settingsState)
@@ -395,6 +399,8 @@ function Toggle-DotfilesTuiItem {
         'choice' {
             if ($Item.Key -eq 'DOTFILES_OH_MY_POSH_THEME') {
                 $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'tokyo-night-storm') { 'rose-pine-moon' } else { 'tokyo-night-storm' }
+            } elseif ($Item.Key -eq 'DOTFILES_DEFAULT_SHELL') {
+                $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'zsh') { 'powershell' } else { 'zsh' }
             } else {
                 $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'junction') { 'symbolic' } else { 'junction' }
             }

@@ -14,6 +14,7 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_SCOOP_PACKAGES',
     'DOTFILES_UPDATE_SCOOP',
     'DOTFILES_INSTALL_ZSH',
+    'DOTFILES_DEFAULT_SHELL',
     'DOTFILES_INSTALL_OH_MY_POSH',
     'DOTFILES_OH_MY_POSH_THEME',
     'DOTFILES_INSTALL_HERDR',
@@ -139,6 +140,7 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim starship ripgrep fd fzf jq lazygit nodejs Hack-NF'
     Set-DotfilesDefault $Config 'DOTFILES_UPDATE_SCOOP' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '1'
+    Set-DotfilesDefault $Config 'DOTFILES_DEFAULT_SHELL' 'zsh'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_OH_MY_POSH' '0'
     Set-DotfilesDefault $Config 'DOTFILES_OH_MY_POSH_THEME' 'tokyo-night-storm'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_HERDR' '1'
@@ -354,6 +356,9 @@ function Assert-DotfilesConfig {
     }
     if (@('tokyo-night-storm', 'rose-pine-moon') -notcontains [string] $Config.DOTFILES_OH_MY_POSH_THEME) {
         throw 'DOTFILES_OH_MY_POSH_THEME must be tokyo-night-storm or rose-pine-moon.'
+    }
+    if (@('zsh', 'powershell') -notcontains [string] $Config.DOTFILES_DEFAULT_SHELL) {
+        throw 'DOTFILES_DEFAULT_SHELL must be zsh or powershell.'
     }
 
     $booleanKeys = @(

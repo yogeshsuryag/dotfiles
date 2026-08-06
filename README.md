@@ -10,7 +10,7 @@ Running the bootstrap installs and configures:
 
 - Git for Windows and Git Bash
 - Neovim with the rose-pine moon theme and locked lazy.nvim plugins
-- PowerShell profiles that launch MSYS2 zsh by default, with an optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors
+- PowerShell profiles that launch MSYS2 zsh by default (or PowerShell itself when `DOTFILES_DEFAULT_SHELL=powershell`), with an optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors
 - Starship with the shared prompt configuration as the fallback prompt
 - ripgrep, fd, fzf, jq, lazygit, Node.js, and Hack Nerd Font
 - MSYS2 zsh launched from PowerShell through `msys2_shell.cmd`
@@ -120,6 +120,12 @@ Restart Git Bash after the first bootstrap so the managed shell hook is loaded.
 Restart PowerShell after bootstrap so its profile launches MSYS2 zsh. Git Bash
 remains available independently.
 
+The PowerShell profile launches MSYS2 zsh with the full Windows PATH, so tools
+installed for Windows (such as `herdr`, `pwsh`, and `nvim`) work inside zsh.
+From a PowerShell session, type `zsh` to drop into MSYS2 zsh at any time. To
+make new terminals open PowerShell instead, set `DOTFILES_DEFAULT_SHELL=powershell`
+in `windows-config.env`; `zsh` still works on demand.
+
 ## Uninstall and restore
 
 Run the automatic uninstall from Git Bash:
@@ -157,7 +163,8 @@ The most useful values are:
 - `DOTFILES_NERD_FONTS_BUCKET_URL` - the Nerd Fonts bucket source
 - `DOTFILES_INSTALL_HERDR` - enable or disable the Herdr Windows installer
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
-- `DOTFILES_INSTALL_ZSH` - install Scoop MSYS2 and pacman zsh, which the PowerShell profiles launch by default
+- `DOTFILES_INSTALL_ZSH` - install Scoop MSYS2 and pacman zsh, which the PowerShell profile launches by default
+- `DOTFILES_DEFAULT_SHELL` - choose `zsh` (default) or `powershell` as the shell new terminals launch
 - `DOTFILES_INSTALL_OH_MY_POSH` - opt in to the Oh My Posh prompt in PowerShell and zsh (installable through the setup UI)
 - `DOTFILES_OH_MY_POSH_THEME` - choose `tokyo-night-storm` (default) or `rose-pine-moon`
 - `DOTFILES_WINDOWS_HOME`, `DOTFILES_LOCAL_APPDATA`, and `DOTFILES_APPDATA` - override detected Windows paths; Git Bash and Windows path forms are accepted
@@ -213,8 +220,9 @@ permissions. Review them before using them.
 ## Neovim and the shell prompt
 
 The first Neovim launch clones lazy.nvim and its plugins from GitHub. This needs
-network access once. The PowerShell profiles launch MSYS2 zsh through
-`msys2_shell.cmd`; its managed startup file sources `home/.zshrc`, which shares
+network access once. The PowerShell profile launches MSYS2 zsh through
+`msys2_shell.cmd` with the full Windows PATH; its managed startup file sources
+`home/.zshrc`, which shares
 the environment, aliases, and prompt setup with the rest of the configuration.
 Selecting Oh My Posh in the setup UI (or setting `DOTFILES_INSTALL_OH_MY_POSH=1`)
 installs it through Scoop and applies the matching Tokyo Night or Rose Pine Moon

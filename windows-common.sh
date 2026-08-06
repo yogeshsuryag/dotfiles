@@ -417,6 +417,11 @@ dotfiles_validate_config() {
     *) echo "DOTFILES_OH_MY_POSH_THEME must be tokyo-night-storm or rose-pine-moon." >&2; return 1 ;;
   esac
 
+  case "$DOTFILES_DEFAULT_SHELL" in
+    zsh|powershell) ;;
+    *) echo "DOTFILES_DEFAULT_SHELL must be zsh or powershell." >&2; return 1 ;;
+  esac
+
   local variable_name
   for variable_name in \
     DOTFILES_INSTALL_SCOOP DOTFILES_UPDATE_SCOOP DOTFILES_INSTALL_ZSH DOTFILES_INSTALL_OH_MY_POSH DOTFILES_INSTALL_HERDR \

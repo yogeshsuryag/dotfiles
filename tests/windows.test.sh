@@ -20,7 +20,7 @@ pass() {
 }
 
 case "${OSTYPE:-}" in
-  msys*|mingw*) ;;
+  cygwin*|msys*|mingw*) ;;
   *) fail "Windows tests must run from Git Bash" ;;
 esac
 
@@ -172,7 +172,11 @@ test_config_wizard_coverage() {
     printf '%s' "$rendered_ui_output" > "$DOTFILES_TEST_RENDERED"
     DOTFILES_TUI_PAGE=3
     dotfiles_tui_load_items
-    [ "${DOTFILES_TUI_ITEM_KEYS[0]}" = DOTFILES_OH_MY_POSH_THEME ]
+    [ "${DOTFILES_TUI_ITEM_KEYS[0]}" = DOTFILES_DEFAULT_SHELL ]
+    dotfiles_tui_toggle_item choice DOTFILES_DEFAULT_SHELL
+    [ "$DOTFILES_DEFAULT_SHELL" = powershell ]
+    dotfiles_tui_toggle_item choice DOTFILES_DEFAULT_SHELL
+    [ "$DOTFILES_DEFAULT_SHELL" = zsh ]
     dotfiles_tui_toggle_item choice DOTFILES_OH_MY_POSH_THEME
     [ "$DOTFILES_OH_MY_POSH_THEME" = rose-pine-moon ]
   ) || fail "configuration TUI serialization failed"
@@ -189,13 +193,14 @@ test_config_wizard_coverage() {
     # shellcheck disable=SC1090
     . "$generated_config"
     [ "$DOTFILES_INSTALL_ZSH" = 1 ]
+    [ "$DOTFILES_DEFAULT_SHELL" = zsh ]
     [ "$DOTFILES_OH_MY_POSH_THEME" = tokyo-night-storm ]
     [ "$DOTFILES_SCOOP_PACKAGES" = 'neovim starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta' ]
     [ "$DOTFILES_SCOOP_BUCKETS" = 'main=https://example.invalid/bucket' ]
   ) || fail "package and bucket selections were not serialized correctly"
   for label in \
     'Install Scoop' 'Install MSYS2 zsh' 'Additional Scoop packages' 'Windows home directory' \
-    'Oh My Posh' 'Prompt theme' 'Link repository paths using' 'Apply Windows settings' 'Review your choices'; do
+    'Oh My Posh' 'Prompt theme' 'Default shell' 'Link repository paths using' 'Apply Windows settings' 'Review your choices'; do
     grep -Fq "$label" "$ROOT/windows-config-tui.sh" \
       || fail "configuration TUI is missing the human-readable label: $label"
   done
@@ -203,6 +208,8 @@ test_config_wizard_coverage() {
     || fail "configuration TUI does not configure raw keyboard input"
   grep -Fq 'DOTFILES_OH_MY_POSH_THEME' "$ROOT/windows-config-tui.sh" \
     || fail "configuration TUI does not expose the prompt theme setting"
+  grep -Fq 'DOTFILES_DEFAULT_SHELL' "$ROOT/windows-config-tui.sh" \
+    || fail "configuration TUI does not expose the default shell setting"
   grep -Fq -- '--configure' "$ROOT/bootstrap.sh" || fail "bootstrap lacks --configure"
   grep -Fq -- '--configure' "$ROOT/rebuild.sh" || fail "rebuild lacks --configure"
   grep -Fq -- '--configure' "$ROOT/uninstall.sh" || fail "uninstall lacks --configure"
@@ -353,6 +360,12 @@ test_msys2_zsh_setup() {
     || fail "zsh startup does not initialize Oh My Posh"
   grep -Fq 'DOTFILES_INSTALL_OH_MY_POSH' "$ROOT/home/.zshrc" \
     || fail "zsh startup does not honor the Oh My Posh opt-in"
+  grep -Fq -- '-use-full-path' "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" \
+    || fail "PowerShell profile does not launch zsh with the full Windows PATH"
+  grep -Fq 'function zsh' "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" \
+    || fail "PowerShell profile does not expose an on-demand zsh entry point"
+  grep -Fq 'DOTFILES_DEFAULT_SHELL' "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" \
+    || fail "PowerShell profile does not honor the default shell choice"
   [ -f "$ROOT/home/.config/powershell/Microsoft.PowerShell_profile.ps1" ] \
     || fail "shared PowerShell profile is missing"
   [ -f "$ROOT/home/.config/oh-my-posh/tokyo-night-storm.omp.json" ] \
