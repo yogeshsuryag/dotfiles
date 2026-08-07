@@ -1,8 +1,11 @@
 # dotfiles
 
-Windows developer setup managed from Git Bash, PowerShell, Scoop, and native
-PowerShell entry points. The repository keeps application configuration in
-`home/` and links it into the Windows locations expected by each application.
+Windows developer setup managed from Git Bash, PowerShell, Scoop, and a single
+native PowerShell engine. The engine lives in `scripts/`, the Git Bash entry
+points (`bootstrap.sh`, `rebuild.sh`, `uninstall.sh`) are thin wrappers that
+launch their `.ps1` counterparts, and the repository keeps application
+configuration in `home/` and links it into the Windows locations expected by
+each application.
 
 ## What you get
 
@@ -42,7 +45,10 @@ installers.
 
 Git Bash is required to use the Bash entry point. Install Git for Windows first
 on a new machine, then clone this repository from Git Bash or PowerShell. Scoop
-can keep Git updated after the bootstrap begins.
+can keep Git updated after the bootstrap begins. The Bash entry points delegate
+to the PowerShell engine, which is always available on Windows; the interactive
+setup wizard needs a real Windows console, so run the first bootstrap from
+PowerShell or Windows Terminal rather than from inside Git Bash.
 
 ## Fresh-machine setup
 
@@ -237,8 +243,8 @@ setup installs zsh through pacman and clones `zsh-autosuggestions` and
 searches history, Ctrl+T picks files, Alt+C jumps to a directory), all tinted
 to the selected theme. When a session stays in PowerShell instead, the profile
 configures PSReadLine with inline history predictions, a Tab completion menu,
-and token colors from the same palettes; older PSReadLine versions fall back to
-history prediction with console colors.
+and token colors from the same palettes; PSReadLine 2.1 falls back to history
+prediction and 2.0 to token colors without predictions.
 
 ## Testing
 
@@ -246,12 +252,17 @@ From Git Bash, run the static checks that do not install packages or modify
 Windows settings:
 
 ```bash
-bash -n bootstrap.sh rebuild.sh windows-common.sh windows-config-tui.sh uninstall.sh tests/lib.sh tests/pi-calm.test.sh
+bash -n bootstrap.sh rebuild.sh uninstall.sh tests/lib.sh tests/pi-calm.test.sh tests/windows.test.sh
 ./bootstrap.sh --check
 ./uninstall.sh --check
 bash tests/windows.test.sh
 bash tests/pi-calm.test.sh
 ```
+
+The Git Bash wrapper suite (`tests/windows.test.sh`) verifies the wrapper
+behavior and then runs the full PowerShell setup suite, which covers the
+configuration round-trip, links, hooks, MSYS2/zsh, prompts, and the Node
+configuration helpers.
 
 From PowerShell, run the native Windows setup suite:
 
