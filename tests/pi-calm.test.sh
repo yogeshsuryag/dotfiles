@@ -113,6 +113,7 @@ test_zero_coupling_and_state_file() {
     fail "the Calm state file is tracked in the repository"
   fi
   assert_not_contains "$(cat "$ROOT/scripts/windows-links.ps1")" '.pi/agent/calm' "Windows links manage the Calm state file"
+  assert_not_contains "$(cat "$ROOT/scripts/windows-link-manifest.ps1")" '.pi/agent/calm' "Windows link manifest manages the Calm state file"
   grep -q '^/home/.pi/agent/calm$' "$ROOT/.gitignore" \
     || fail ".gitignore does not guard /home/.pi/agent/calm"
 
@@ -127,10 +128,10 @@ test_zero_coupling_and_state_file() {
 test_static_typescript_and_repo_wiring() {
   # The Windows link helper links the full extensions directory, so the Calm
   # subdirectory auto-loads without another declaration.
-  grep -q "home/.pi/agent/extensions" "$ROOT/scripts/windows-links.ps1" \
-    || fail "windows-links.ps1 no longer links the Pi extensions directory"
-  grep -q "Join-Path \$PiAgentDir 'extensions'" "$ROOT/scripts/windows-links.ps1" \
-    || fail "windows-links.ps1 changed the Pi extensions link target"
+  grep -q "home/.pi/agent/extensions" "$ROOT/scripts/windows-link-manifest.ps1" \
+    || fail "windows-link-manifest.ps1 no longer links the Pi extensions directory"
+  grep -q "Join-Path \$PiAgentDir 'extensions'" "$ROOT/scripts/windows-link-manifest.ps1" \
+    || fail "windows-link-manifest.ps1 changed the Pi extensions link target"
   [ -f "$CALM_DIR/index.ts" ] || fail "calm extension entry point missing"
   [ -f "$CALM_DIR/LICENSE" ] || fail "calm license file missing"
 

@@ -3,11 +3,12 @@
 Deliberate decisions in this repo - do NOT silently revert them:
 
 - The setup logic has ONE implementation: the native PowerShell engine in
-  `scripts/` (`windows-common.ps1` plus the links/settings/uninstall/TUI
-  helpers), invoked by the `bootstrap.ps1`, `rebuild.ps1`, and `uninstall.ps1`
-  entry points. Do not recreate a parallel Bash implementation of setup logic.
-  Git Bash is still a supported shell through the managed `~/.bashrc` hook,
-  but all setup commands are PowerShell-only.
+  `scripts/` (`windows-common.ps1` loads the shared config/tools/scoop/msys2/
+  installers/hooks/apply modules, plus the links/settings/uninstall/manifest/
+  TUI helpers), invoked by the `bootstrap.ps1`, `rebuild.ps1`, and
+  `uninstall.ps1` entry points. Do not recreate a parallel Bash implementation
+  of setup logic. Git Bash is still a supported shell through the managed
+  `~/.bashrc` hook, but all setup commands are PowerShell-only.
 - Windows registry changes are opt-in through `windows-config.env`; do not make
   them apply by default or hide them inside the normal link step.
 - `windows-config.env` is local and ignored. Keep package lists, paths, and

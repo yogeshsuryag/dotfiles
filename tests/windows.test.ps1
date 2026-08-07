@@ -271,8 +271,8 @@ try {
     Assert-Test ($zshrcContent -match 'eval "\$\(starship init zsh\)"') 'zsh configuration falls back to Starship'
     Assert-Test ($zshrcContent -match 'oh-my-posh init zsh') 'zsh configuration initializes Oh My Posh'
     Assert-Test ($zshrcContent -match 'DOTFILES_INSTALL_OH_MY_POSH') 'zsh configuration honors the Oh My Posh opt-in'
-    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-autosuggestions.git') 'MSYS2 setup installs the zsh-autosuggestions plugin from its repository'
-    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-syntax-highlighting.git') 'MSYS2 setup installs the zsh-syntax-highlighting plugin from its repository'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-msys2.ps1') -Raw) -match 'github.com/zsh-users/zsh-autosuggestions.git') 'MSYS2 setup installs the zsh-autosuggestions plugin from its repository'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-msys2.ps1') -Raw) -match 'github.com/zsh-users/zsh-syntax-highlighting.git') 'MSYS2 setup installs the zsh-syntax-highlighting plugin from its repository'
     $profilePath = Join-Path $root 'home/.config/powershell/Microsoft.PowerShell_profile.ps1'
     Assert-Test (Test-Path -LiteralPath $profilePath -PathType Leaf) 'shared PowerShell profile is present'
     $profileContent = Get-Content -LiteralPath $profilePath -Raw
