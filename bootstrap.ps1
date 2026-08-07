@@ -36,13 +36,22 @@ try {
         Write-Host "User home: $($config.DOTFILES_WINDOWS_HOME)"
         Write-Host "Package manager: $($config.DOTFILES_PACKAGE_MANAGER)"
         Write-Host "Packages: $($config.DOTFILES_WINGET_PACKAGES)"
+        Write-Host ''
+        Write-Host 'Detected tools before installation:'
+        foreach ($entry in @(Get-DotfilesPackagePlan $config)) {
+            Write-Host ("  {0,-24} {1}" -f $entry.Name, (Get-DotfilesPlanEntryDetail $entry))
+        }
         exit 0
     }
 
-    Write-Host '==> Installing declared tools'
-    Install-DotfilesPackages $config
+    Write-Host '==> Checking installed tools before installing anything'
+    $plan = @(Get-DotfilesPackagePlan $config)
+    if (-not (Invoke-DotfilesPackagePlanReview $plan)) {
+        throw 'Installation cancelled. Nothing was installed.'
+    }
+    Write-Host '==> Installing approved tools'
+    Invoke-DotfilesPackagePlan $config $plan
     Install-DotfilesHerdr $config
-    Install-DotfilesAgentClis $config
     Install-DotfilesZsh $config
 
     Write-Host '==> Installing Git Bash configuration hook'

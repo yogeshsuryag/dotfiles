@@ -77,13 +77,14 @@ The bootstrap script is idempotent and will:
 
 1. Validate the local configuration and detected Windows paths.
 2. Install PowerShell 7 through WinGet when only Windows PowerShell is present, then continue under `pwsh`.
-3. Install the configured packages through the default Scoop manager, each into its own versioned directory under `~/scoop/apps/<name>/current` with a shim on PATH; WinGet mode instead installs user-scope zip packages and extracts the official portable archives for Git, Node.js, Neovim, and Starship into `%LOCALAPPDATA%\Programs`.
-4. Install Herdr's Windows beta through its official installer when enabled.
-5. Install MSYS2 through Scoop (or WinGet in WinGet mode), its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1`.
-6. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
-7. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
-8. Merge the tracked Tokyo Night styling into the Windows Terminal settings, backing up the original file once, and never touching your profile list.
-9. Apply only the Windows registry settings explicitly enabled in the config.
+3. Check whether every declared tool is already available - on PATH, in Scoop (`scoop list`), or in WinGet (`winget list`) - and show a review page with the recommended action per tool (Skip for existing tools, Install for missing ones). Space changes a tool's action (Install/Skip/Replace), Enter continues, Esc cancels without installing anything. Non-interactive runs skip the page and apply the recommendations automatically.
+4. Install only the approved packages through the default Scoop manager, each into its own versioned directory under `~/scoop/apps/<name>/current` with a shim on PATH; WinGet mode instead installs user-scope zip packages and extracts the official portable archives for Git, Node.js, Neovim, and Starship into `%LOCALAPPDATA%\Programs`.
+5. Install Herdr's Windows beta through its official installer when enabled.
+6. Install MSYS2 through Scoop (or WinGet in WinGet mode), its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1`.
+7. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
+8. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
+9. Merge the tracked Tokyo Night styling into the Windows Terminal settings, backing up the original file once, and never touching your profile list.
+10. Apply only the Windows registry settings explicitly enabled in the config.
 
 Validate configuration without installing or changing anything:
 
@@ -91,7 +92,9 @@ Validate configuration without installing or changing anything:
 .\bootstrap.ps1 --check
 ```
 
-`--check` never creates or edits `windows-config.env`.
+`--check` never creates or edits `windows-config.env`. It also prints which
+declared tools are already installed, so you can preview what the bootstrap
+would skip and install.
 
 ## Daily use
 

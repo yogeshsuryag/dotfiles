@@ -254,20 +254,25 @@ function Configure-DotfilesWinget {
 }
 
 function Install-DotfilesWingetPackages {
-    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+    param(
+        [Parameter(Mandatory = $true)] [hashtable] $Config,
+        [string[]] $Specs = @()
+    )
 
-    $specs = @([string] $Config.DOTFILES_WINGET_PACKAGES -split '\s+' | Where-Object { $_ })
-    if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1' -and $specs -notcontains 'JanDeDobbeleer.OhMyPosh') {
-        $specs += 'JanDeDobbeleer.OhMyPosh'
+    if ($Specs.Count -eq 0) {
+        $Specs = @([string] $Config.DOTFILES_WINGET_PACKAGES -split '\s+' | Where-Object { $_ })
+        if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1' -and $Specs -notcontains 'JanDeDobbeleer.OhMyPosh') {
+            $Specs += 'JanDeDobbeleer.OhMyPosh'
+        }
     }
-    if ($specs.Count -eq 0) {
+    if ($Specs.Count -eq 0) {
         Write-Host '==> No WinGet packages declared, skipping package installation'
         return
     }
 
     Configure-DotfilesWinget $Config
 
-    foreach ($spec in $specs) {
+    foreach ($spec in $Specs) {
         if ($spec -eq 'git') {
             Install-DotfilesPortableGit $Config
             continue

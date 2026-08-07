@@ -15,18 +15,20 @@ function Install-DotfilesHerdr {
 }
 
 function Install-DotfilesAgentClis {
-    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+    param(
+        [Parameter(Mandatory = $true)] [hashtable] $Config,
+        [string[]] $Packages = @()
+    )
 
     if ([string] $Config.DOTFILES_INSTALL_AGENT_CLIS -ne '1') {
         return
     }
+    if ($Packages.Count -eq 0) {
+        $Packages = @('@anthropic-ai/claude-code', '@openai/codex', '@earendil-works/pi-coding-agent', 'opencode-ai')
+    }
     if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
         throw 'Agent CLIs requested, but npm is unavailable. Select the Node.js LTS package in the setup UI, or add node to DOTFILES_WINGET_PACKAGES (or nodejs to DOTFILES_SCOOP_PACKAGES in Scoop mode), then rerun.'
     }
-    Write-Host '==> Installing optional agent CLIs with npm'
-    Invoke-DotfilesCommand 'npm' @(
-        'install', '--global', '--ignore-scripts',
-        '@anthropic-ai/claude-code', '@openai/codex',
-        '@earendil-works/pi-coding-agent', 'opencode-ai'
-    )
+    Write-Host "==> Installing optional agent CLIs with npm: $($Packages -join ' ')"
+    Invoke-DotfilesCommand 'npm' ((@('install', '--global', '--ignore-scripts') + @($Packages)))
 }

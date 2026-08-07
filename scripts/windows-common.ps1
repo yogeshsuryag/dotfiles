@@ -19,3 +19,4 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'windows-hooks.ps1')
 . (Join-Path $PSScriptRoot 'windows-apply.ps1')
 . (Join-Path $PSScriptRoot 'windows-config-tui.ps1')
+. (Join-Path $PSScriptRoot 'windows-plan.ps1')

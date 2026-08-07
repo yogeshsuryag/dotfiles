@@ -78,27 +78,22 @@ function Configure-DotfilesScoop {
 }
 
 function Install-DotfilesScoopPackages {
-    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+    param(
+        [Parameter(Mandatory = $true)] [hashtable] $Config,
+        [string[]] $Packages = @()
+    )
 
-    $packages = @([string] $Config.DOTFILES_SCOOP_PACKAGES -split '\s+' | Where-Object { $_ })
-    if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1' -and $packages -notcontains 'oh-my-posh') {
-        $packages += 'oh-my-posh'
+    if ($Packages.Count -eq 0) {
+        $Packages = @([string] $Config.DOTFILES_SCOOP_PACKAGES -split '\s+' | Where-Object { $_ })
+        if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1' -and $Packages -notcontains 'oh-my-posh') {
+            $Packages += 'oh-my-posh'
+        }
     }
-    if ($packages.Count -eq 0) {
+    if ($Packages.Count -eq 0) {
         Write-Host '==> No Scoop packages declared, skipping package installation'
         return
     }
     Configure-DotfilesScoop $Config
-    Write-Host '==> Installing declared Scoop packages'
-    Invoke-DotfilesCommand 'scoop' (@('install') + $packages)
-}
-
-function Install-DotfilesPackages {
-    param([Parameter(Mandatory = $true)] [hashtable] $Config)
-
-    if ([string] $Config.DOTFILES_PACKAGE_MANAGER -eq 'scoop') {
-        Install-DotfilesScoopPackages $Config
-        return
-    }
-    Install-DotfilesWingetPackages $Config
+    Write-Host "==> Installing Scoop packages: $($Packages -join ' ')"
+    Invoke-DotfilesCommand 'scoop' (@('install') + @($Packages))
 }

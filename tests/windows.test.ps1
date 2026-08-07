@@ -174,6 +174,90 @@ try {
     Assert-Test ($stateConfig.DOTFILES_OH_MY_POSH_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the prompt theme'
     Pass-Test 'PowerShell TUI state covers documented package choices'
 
+    $fakeBin = Join-Path $testRoot 'fakebin'
+    New-Item -ItemType Directory -Path $fakeBin -Force | Out-Null
+    Copy-Item -LiteralPath (Get-Command $powerShellExecutable).Source -Destination (Join-Path $fakeBin 'fake-tool.exe') -Force
+    $previousPath = $env:PATH
+    $env:PATH = "$fakeBin;$previousPath"
+    try {
+        $foundProbe = Test-DotfilesToolOnPath 'fake-tool'
+        Assert-Test ($null -ne $foundProbe -and $foundProbe.Source -eq (Join-Path $fakeBin 'fake-tool.exe')) 'plan tool probe finds a tool on PATH'
+        Assert-Test ($null -eq (Test-DotfilesToolOnPath 'dotfiles-tool-that-does-not-exist')) 'plan tool probe reports missing tools'
+        $planConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+        Initialize-DotfilesConfigDefaults $planConfig | Out-Null
+        $planConfig.DOTFILES_PACKAGE_MANAGER = 'scoop'
+        $planConfig.DOTFILES_SCOOP_PACKAGES = 'fake-tool dotfiles-tool-that-does-not-exist git'
+        $planConfig.DOTFILES_INSTALL_AGENT_CLIS = '0'
+        $plan = @(Get-DotfilesPackagePlan $planConfig)
+        Assert-Test ($plan.Count -eq 3) 'package plan covers every declared package'
+        $availableEntry = @($plan | Where-Object { $_.Name -eq 'fake-tool' })[0]
+        Assert-Test ($availableEntry.Status -eq 'available') 'plan marks PATH tools from another source as available'
+        Assert-Test ($availableEntry.RecommendedAction -eq 'Skip' -and $availableEntry.Action -eq 'Skip') 'plan recommends and defaults to Skip for available tools'
+        Assert-Test (($availableEntry.AllowedActions -join ',') -eq 'Skip,Replace') 'plan offers Replace for available tools'
+        $missingEntry = @($plan | Where-Object { $_.Name -eq 'dotfiles-tool-that-does-not-exist' })[0]
+        Assert-Test ($missingEntry.Status -eq 'not-found' -and $missingEntry.RecommendedAction -eq 'Install' -and $missingEntry.Action -eq 'Install') 'plan recommends and defaults to Install for missing tools'
+        $gitEntry = @($plan | Where-Object { $_.Name -eq 'git' })[0]
+        Assert-Test ($gitEntry.Status -in @('installed', 'available')) 'plan recognizes the git executable on the machine'
+        Set-DotfilesPlanEntryNextAction $missingEntry
+        Assert-Test ($missingEntry.Action -eq 'Skip') 'plan action cycles forward from Install to Skip'
+        Set-DotfilesPlanEntryNextAction $missingEntry
+        Assert-Test ($missingEntry.Action -eq 'Install') 'plan action cycles back to the first allowed action'
+        Pass-Test 'Package plan detects existing tools and recommends the best choice'
+    } finally {
+        $env:PATH = $previousPath
+    }
+
+    $agentConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $agentConfig | Out-Null
+    $agentConfig.DOTFILES_PACKAGE_MANAGER = 'scoop'
+    $agentConfig.DOTFILES_SCOOP_PACKAGES = ''
+    $agentConfig.DOTFILES_INSTALL_AGENT_CLIS = '1'
+    $agentPlan = @(Get-DotfilesPackagePlan $agentConfig)
+    Assert-Test ($agentPlan.Count -eq 4) 'agent CLIs are added to the plan when enabled'
+    Assert-Test ((@($agentPlan | Where-Object { $_.ManagerName -eq 'npm' }).Count) -eq 4) 'agent CLI plan entries use the npm manager'
+    Assert-Test ((@($agentPlan | Where-Object { $_.Package -eq '@anthropic-ai/claude-code' }).Count) -eq 1) 'agent CLI plan entries carry the npm package name'
+    Pass-Test 'Optional agent CLIs participate in the package plan'
+
+    $autoProbe = Join-Path $testRoot 'auto-apply-probe.ps1'
+    Set-Content -LiteralPath $autoProbe -Value @'
+$probeRoot = $args[0]
+. (Join-Path $probeRoot 'scripts/windows-common.ps1')
+$config = @{}
+Initialize-DotfilesConfigDefaults $config | Out-Null
+$config.DOTFILES_PACKAGE_MANAGER = 'scoop'
+$config.DOTFILES_SCOOP_PACKAGES = 'dotfiles-tool-that-does-not-exist'
+$config.DOTFILES_INSTALL_AGENT_CLIS = '0'
+$plan = @(Get-DotfilesPackagePlan $config)
+$result = Invoke-DotfilesPackagePlanReview $plan
+Write-Output "result=$result action=$($plan[0].Action)"
+'@ -NoNewline
+    $probeProcess = New-Object System.Diagnostics.Process
+    $probeProcess.StartInfo.FileName = $powerShellExecutable
+    $probeProcess.StartInfo.Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$autoProbe`" `"$root`""
+    $probeProcess.StartInfo.UseShellExecute = $false
+    $probeProcess.StartInfo.RedirectStandardInput = $true
+    $probeProcess.StartInfo.RedirectStandardOutput = $true
+    $probeProcess.StartInfo.RedirectStandardError = $true
+    [void] $probeProcess.Start()
+    $probeProcess.StandardInput.Close()
+    $autoOutput = $probeProcess.StandardOutput.ReadToEnd()
+    $probeProcess.WaitForExit()
+    Assert-Test ($probeProcess.ExitCode -eq 0) 'non-interactive plan review completes without a terminal'
+    Assert-Test ($autoOutput -match 'result=True') 'non-interactive plan review auto-applies recommendations'
+    Assert-Test ($autoOutput -match 'action=Install') 'non-interactive plan review keeps the recommended action for missing tools'
+    Pass-Test 'Non-interactive plan review applies recommendations without a terminal'
+
+    $planFixtureConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $planFixtureConfig | Out-Null
+    $planFixturePath = Join-Path $testRoot 'plan-windows-config.env'
+    Write-DotfilesEnvFile $planFixtureConfig $planFixturePath
+    $checkResult = Invoke-WithConfigPath $planFixturePath {
+        Invoke-NativeScript (Join-Path $root 'bootstrap.ps1') @('--check')
+    }
+    Assert-Test ($checkResult.ExitCode -eq 0) 'bootstrap --check prints the package plan'
+    Assert-Test ($checkResult.Output -match 'Detected tools before installation') 'bootstrap --check shows the detected tools heading'
+    Pass-Test 'bootstrap --check previews detected tools without installing'
+
     $wingetArguments = Get-DotfilesWingetInstallArguments 'BurntSushi.ripgrep.MSVC'
     Assert-Test (($wingetArguments -contains '--silent') -and ($wingetArguments -contains '--disable-interactivity')) 'WinGet install arguments stay silent and noninteractive'
     Assert-Test (-not ($wingetArguments -contains '--scope')) 'WinGet install arguments do not force a scope unsupported by portable packages'
