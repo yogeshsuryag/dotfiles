@@ -21,7 +21,7 @@ function Install-DotfilesAgentClis {
         return
     }
     if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-        throw 'Agent CLIs requested, but npm is unavailable. Add nodejs to DOTFILES_SCOOP_PACKAGES and rerun.'
+        throw 'Agent CLIs requested, but npm is unavailable. Select the Node.js LTS package in the setup UI, or add node to DOTFILES_WINGET_PACKAGES (or nodejs to DOTFILES_SCOOP_PACKAGES in Scoop mode), then rerun.'
     }
     Write-Host '==> Installing optional agent CLIs with npm'
     Invoke-DotfilesCommand 'npm' @(

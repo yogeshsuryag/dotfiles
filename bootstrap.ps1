@@ -22,6 +22,10 @@ $mode = if ($argumentList.Count -eq 1) { $argumentList[0] } else { '' }
 . (Join-Path $root 'scripts/windows-common.ps1')
 
 try {
+    if ($mode -ne '--check') {
+        Ensure-DotfilesPowerShell7 -EntryPoint $PSCommandPath -CliArguments $CliArguments
+    }
+
     $configuration = Get-DotfilesConfiguration -Root $root -CheckOnly:($mode -eq '--check') -Configure:($mode -eq '--configure')
     $config = $configuration.Values
     Assert-DotfilesConfig $config
@@ -30,7 +34,8 @@ try {
         Write-Host "Windows dotfiles configuration is valid: $($configuration.Path)"
         Write-Host "Repository: $root"
         Write-Host "User home: $($config.DOTFILES_WINDOWS_HOME)"
-        Write-Host "Scoop packages: $($config.DOTFILES_SCOOP_PACKAGES)"
+        Write-Host "Package manager: $($config.DOTFILES_PACKAGE_MANAGER)"
+        Write-Host "Packages: $($config.DOTFILES_WINGET_PACKAGES)"
         exit 0
     }
 
@@ -43,11 +48,12 @@ try {
     Write-Host '==> Installing Git Bash configuration hook'
     Invoke-DotfilesLinks $root $config
     Install-DotfilesBashHook $root $config
+    Invoke-DotfilesWindowsTerminalSettings $config
     Invoke-DotfilesWindowsSettings $root $config
 
     Write-Host '==> Bootstrap complete'
     Write-Host '    Restart Git Bash to load the new shell configuration.'
-    Write-Host '    Restart PowerShell so its profile launches the new MSYS2 zsh shell.'
+    Write-Host '    Restart PowerShell so the PowerShell 7 profile and Starship prompt load.'
     Write-Host '    Re-run .\rebuild.ps1 after changing repository files or windows-config.env.'
     exit 0
 } catch {

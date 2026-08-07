@@ -50,7 +50,8 @@ try {
     } else {
         Write-Host 'Existing .dotfiles-backup-* targets will be left untouched.'
     }
-    Write-Host 'Registry settings, Scoop packages, MSYS2, zsh, Herdr, and agent CLIs will not be uninstalled.'
+    Write-Host 'Windows Terminal settings will be restored from their first-run backup.'
+    Write-Host 'Registry settings, WinGet and Scoop packages, MSYS2, zsh, Herdr, and agent CLIs will not be uninstalled.'
 
     if (-not $assumeYes) {
         if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
@@ -65,6 +66,8 @@ try {
 
     Write-Host '==> Removing repository-managed Windows links'
     Invoke-DotfilesUninstallLinks $root $config $restoreBackups
+    Write-Host '==> Restoring Windows Terminal settings'
+    Restore-DotfilesWindowsTerminalSettings $config
     Write-Host '==> Removing the managed Git Bash hook'
     Remove-DotfilesBashHook $config
     $msys2Root = Get-DotfilesMsys2Root

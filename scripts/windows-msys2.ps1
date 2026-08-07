@@ -14,6 +14,8 @@ function Get-DotfilesMsys2Root {
     if ($ScoopRoot) {
         $candidates += Join-Path (ConvertTo-NativePath $ScoopRoot) 'apps/msys2/current'
     } else {
+        $candidates += 'C:\msys64'
+
         $scoopCommand = Get-Command scoop -ErrorAction SilentlyContinue
         if ($null -ne $scoopCommand) {
             $prefixOutput = (& $scoopCommand.Name prefix msys2 2>$null | Out-String).Trim()
@@ -49,7 +51,7 @@ function Get-DotfilesMsys2Root {
     }
 
     if ($Required) {
-        throw 'MSYS2 was not discovered through Scoop. Install it with Scoop or set DOTFILES_INSTALL_ZSH=0.'
+        throw 'MSYS2 was not discovered. Install it through WinGet or Scoop, or set DOTFILES_INSTALL_ZSH=0.'
     }
     return $null
 }
@@ -171,6 +173,24 @@ function Remove-DotfilesMsys2Plugins {
     }
 }
 
+function Install-DotfilesMsys2 {
+    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+
+    if ([string] $Config.DOTFILES_PACKAGE_MANAGER -eq 'scoop') {
+        Install-DotfilesScoop $Config
+        Write-Host '==> Installing MSYS2 through Scoop'
+        Invoke-DotfilesCommand 'scoop' @('install', 'msys2')
+        return
+    }
+
+    $wingetRoot = Get-DotfilesMsys2Root
+    if ($wingetRoot) {
+        Write-Host "==> MSYS2 already installed at $wingetRoot"
+        return
+    }
+    Invoke-DotfilesWingetInstall 'MSYS2.MSYS2'
+}
+
 function Install-DotfilesZsh {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
@@ -183,9 +203,7 @@ function Install-DotfilesZsh {
         return
     }
 
-    Install-DotfilesScoop $Config
-    Write-Host '==> Installing MSYS2 through Scoop'
-    Invoke-DotfilesCommand 'scoop' @('install', 'msys2')
+    Install-DotfilesMsys2 $Config
 
     $msys2Root = Get-DotfilesMsys2Root -Required
     Invoke-DotfilesMsys2Pacman $msys2Root

@@ -6,13 +6,16 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
 $script:DotfilesConfigKeys = @(
+    'DOTFILES_PACKAGE_MANAGER',
+    'DOTFILES_WINGET_PACKAGES',
+    'DOTFILES_LOCAL_TOOLS_DIR',
+    'DOTFILES_UPDATE_PACKAGES',
     'DOTFILES_INSTALL_SCOOP',
     'DOTFILES_SCOOP_BUCKETS',
     'DOTFILES_NERD_FONTS_BUCKET_URL',
     'DOTFILES_SCOOP_PACKAGES',
     'DOTFILES_UPDATE_SCOOP',
     'DOTFILES_INSTALL_ZSH',
-    'DOTFILES_DEFAULT_SHELL',
     'DOTFILES_INSTALL_OH_MY_POSH',
     'DOTFILES_OH_MY_POSH_THEME',
     'DOTFILES_INSTALL_HERDR',
@@ -126,19 +129,27 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_DOTFILES_LINK' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.dotfiles')
 
     Set-DotfilesDefault $Config 'DOTFILES_NVIM_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_LOCAL_APPDATA 'nvim')
+    Set-DotfilesDefault $Config 'DOTFILES_LOCAL_TOOLS_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_LOCAL_APPDATA 'Programs')
     Set-DotfilesDefault $Config 'DOTFILES_HERDR_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_APPDATA 'herdr')
     Set-DotfilesDefault $Config 'DOTFILES_CLAUDE_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.claude')
     Set-DotfilesDefault $Config 'DOTFILES_CODEX_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.codex')
     Set-DotfilesDefault $Config 'DOTFILES_OPENCODE_CONFIG_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_XDG_CONFIG_HOME 'opencode')
     Set-DotfilesDefault $Config 'DOTFILES_PI_AGENT_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.pi/agent')
 
+    # Scoop is the default package manager: every app installs into its own
+    # versioned directory under ~/scoop/apps/<name>/current with a shim on
+    # PATH, which keeps installs self-contained, easy to update, and never
+    # requires elevation. WinGet remains an alternative through
+    # DOTFILES_PACKAGE_MANAGER.
+    Set-DotfilesDefault $Config 'DOTFILES_PACKAGE_MANAGER' 'scoop'
+    Set-DotfilesDefault $Config 'DOTFILES_WINGET_PACKAGES' 'git node neovim starship BurntSushi.ripgrep.MSVC sharkdp.fd junegunn.fzf jqlang.jq JesseDuffield.lazygit'
+    Set-DotfilesDefault $Config 'DOTFILES_UPDATE_PACKAGES' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_SCOOP' '1'
     Set-DotfilesDefault $Config 'DOTFILES_SCOOP_BUCKETS' 'extras'
     Set-DotfilesDefault $Config 'DOTFILES_NERD_FONTS_BUCKET_URL' 'https://github.com/matthewjberger/scoop-nerd-fonts'
-    Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim starship ripgrep fd fzf jq lazygit nodejs Hack-NF'
+    Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim starship ripgrep fd fzf jq lazygit nodejs'
     Set-DotfilesDefault $Config 'DOTFILES_UPDATE_SCOOP' '0'
-    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '1'
-    Set-DotfilesDefault $Config 'DOTFILES_DEFAULT_SHELL' 'zsh'
+    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_OH_MY_POSH' '0'
     Set-DotfilesDefault $Config 'DOTFILES_OH_MY_POSH_THEME' 'tokyo-night-storm'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_HERDR' '1'
@@ -355,8 +366,8 @@ function Assert-DotfilesConfig {
     if (@('tokyo-night-storm', 'rose-pine-moon') -notcontains [string] $Config.DOTFILES_OH_MY_POSH_THEME) {
         throw 'DOTFILES_OH_MY_POSH_THEME must be tokyo-night-storm or rose-pine-moon.'
     }
-    if (@('zsh', 'powershell') -notcontains [string] $Config.DOTFILES_DEFAULT_SHELL) {
-        throw 'DOTFILES_DEFAULT_SHELL must be zsh or powershell.'
+    if (@('winget', 'scoop') -notcontains [string] $Config.DOTFILES_PACKAGE_MANAGER) {
+        throw 'DOTFILES_PACKAGE_MANAGER must be winget or scoop.'
     }
 
     $booleanKeys = @(

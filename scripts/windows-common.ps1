@@ -10,8 +10,11 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'windows-config.ps1')
 . (Join-Path $PSScriptRoot 'windows-tools.ps1')
+. (Join-Path $PSScriptRoot 'windows-prereq.ps1')
 . (Join-Path $PSScriptRoot 'windows-scoop.ps1')
+. (Join-Path $PSScriptRoot 'windows-winget.ps1')
 . (Join-Path $PSScriptRoot 'windows-msys2.ps1')
+. (Join-Path $PSScriptRoot 'windows-terminal.ps1')
 . (Join-Path $PSScriptRoot 'windows-installers.ps1')
 . (Join-Path $PSScriptRoot 'windows-hooks.ps1')
 . (Join-Path $PSScriptRoot 'windows-apply.ps1')

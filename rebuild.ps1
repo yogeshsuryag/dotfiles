@@ -22,6 +22,10 @@ $mode = if ($argumentList.Count -eq 1) { $argumentList[0] } else { '' }
 . (Join-Path $root 'scripts/windows-common.ps1')
 
 try {
+    if ($mode -ne '--check') {
+        Ensure-DotfilesPowerShell7 -EntryPoint $PSCommandPath -CliArguments $CliArguments
+    }
+
     $configuration = Get-DotfilesConfiguration -Root $root -CheckOnly:($mode -eq '--check') -Configure:($mode -eq '--configure')
     $config = $configuration.Values
     Assert-DotfilesConfig $config
@@ -34,6 +38,7 @@ try {
     Install-DotfilesZsh $config
     Invoke-DotfilesLinks $root $config
     Install-DotfilesBashHook $root $config
+    Invoke-DotfilesWindowsTerminalSettings $config
     Invoke-DotfilesWindowsSettings $root $config
 
     Write-Host 'Windows dotfiles re-applied.'

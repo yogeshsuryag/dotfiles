@@ -2,32 +2,55 @@
 
 Set-StrictMode -Version 3.0
 
+$script:DotfilesTuiPackageMap = @{
+    'git' = 'git'
+    'neovim' = 'neovim'
+    'starship' = 'starship'
+    'ripgrep' = 'BurntSushi.ripgrep.MSVC'
+    'fd' = 'sharkdp.fd'
+    'fzf' = 'junegunn.fzf'
+    'jq' = 'jqlang.jq'
+    'lazygit' = 'JesseDuffield.lazygit'
+    'nodejs' = 'node'
+    'oh-my-posh' = 'JanDeDobbeleer.OhMyPosh'
+}
+$script:DotfilesTuiPackageMapReverse = @{}
+foreach ($entry in $script:DotfilesTuiPackageMap.GetEnumerator()) {
+    $script:DotfilesTuiPackageMapReverse[$entry.Value] = $entry.Key
+}
+
 function New-DotfilesTuiState {
     param(
         [Parameter(Mandatory = $true)] [hashtable] $Config,
         [Parameter(Mandatory = $true)] [string] $RequestedConfig
     )
 
-    $options = @('git', 'neovim', 'oh-my-posh', 'starship', 'ripgrep', 'fd', 'fzf', 'jq', 'lazygit', 'nodejs', 'Hack-NF')
-    $labels = @('Git for Windows', 'Neovim', 'Oh My Posh', 'Starship', 'ripgrep', 'fd', 'fzf', 'jq', 'lazygit', 'Node.js', 'Hack Nerd Font')
+    $options = @('git', 'neovim', 'starship', 'ripgrep', 'fd', 'fzf', 'jq', 'lazygit', 'nodejs', 'oh-my-posh')
+    $labels = @('Git for Windows', 'Neovim', 'Starship', 'ripgrep', 'fd', 'fzf', 'jq', 'lazygit', 'Node.js LTS', 'Oh My Posh')
     $descriptions = @(
-        'Git and Git Bash, used by the repository and daily development.'
-        'The terminal editor configured in home/.config/nvim.'
-        'The optional prompt configured for PowerShell and zsh.'
-        'The shell prompt used by the managed Git Bash configuration.'
+        'Git and Git Bash from the official portable archive, used by the repository and daily development.'
+        'The terminal editor configured in home/.config/nvim, from the official portable archive.'
+        'The shell prompt used by the managed Git Bash and PowerShell configurations, from the official portable archive.'
         'Fast recursive search for files and text.'
         'A fast, user-friendly alternative to find.'
         'Fuzzy finder used by shell and editor workflows.'
         'Command-line JSON processing.'
         'A terminal UI for Git repositories.'
-        'The runtime needed by optional agent CLI installers.'
-        'The font family used by the terminal and editor configuration.'
+        'The runtime needed by optional agent CLI installers, from the official Node.js LTS archive.'
+        'The optional prompt configured for zsh.'
     )
     $selected = @{}
     foreach ($option in $options) { $selected[$option] = $false }
     $customPackages = @()
-    foreach ($package in ([string] $Config.DOTFILES_SCOOP_PACKAGES -split '\s+' | Where-Object { $_ })) {
-        if ($selected.ContainsKey($package)) { $selected[$package] = $true } else { $customPackages += $package }
+    $useScoop = ([string] $Config.DOTFILES_PACKAGE_MANAGER -eq 'scoop')
+    $packageList = if ($useScoop) { [string] $Config.DOTFILES_SCOOP_PACKAGES } else { [string] $Config.DOTFILES_WINGET_PACKAGES }
+    foreach ($package in ($packageList -split '\s+' | Where-Object { $_ })) {
+        $optionName = if ($useScoop) { $package } else { $script:DotfilesTuiPackageMapReverse[$package] }
+        if ($optionName -and $selected.ContainsKey($optionName)) {
+            $selected[$optionName] = $true
+        } else {
+            $customPackages += $package
+        }
     }
     if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1') {
         $selected['oh-my-posh'] = $true
@@ -101,7 +124,7 @@ function Get-DotfilesTuiPageIntro {
     param([Parameter(Mandatory = $true)] [int] $Page)
 
     switch ($Page) {
-        0 { return 'Choose the tools Scoop should install. Space toggles a choice; custom entries stay space-separated.' }
+        0 { return 'Choose how packages are installed and which tools to include. Space toggles a choice; custom entries stay space-separated.' }
         1 { return 'These installers are optional. URLs are editable so you can review the source before continuing.' }
         2 { return 'Defaults are detected from Windows. Press Enter to edit any path.' }
         3 { return 'Choose the prompt theme, link behavior, and which editor commands Git Bash should use.' }
@@ -116,22 +139,23 @@ function Set-DotfilesTuiItems {
     $State.Items = @()
     switch ($State.Page) {
         0 {
-            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_SCOOP' 'Install Scoop' 'Windows package manager used to install the selected tools below.'
-            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_UPDATE_SCOOP' 'Update Scoop before installing' 'Refresh Scoop metadata first. This is slower but useful on an existing setup.'
-            Add-DotfilesTuiItem $State 'bucket' 'extras' 'Add the extras bucket' "Enables Scoop's community extras bucket for additional package manifests."
-            Add-DotfilesTuiItem $State 'text' '__custom_buckets' 'Additional Scoop buckets' 'Optional space-separated bucket names or name=URL values.'
-            Add-DotfilesTuiItem $State 'text' 'DOTFILES_NERD_FONTS_BUCKET_URL' 'Nerd Fonts source' 'Repository used when the setup adds the Nerd Fonts Scoop bucket.'
+            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_PACKAGE_MANAGER' 'Package manager' 'Scoop is the default: every app lives in its own ~/scoop/apps/<name>/current directory with a shim on PATH, so installs stay self-contained and never need elevation. WinGet remains an alternative.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_UPDATE_PACKAGES' 'Update packages before installing' 'Run WinGet upgrades for existing packages before installing new ones.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_UPDATE_SCOOP' 'Update Scoop before installing' 'Refresh Scoop metadata first. This only applies when Scoop is the package manager.'
+            Add-DotfilesTuiItem $State 'bucket' 'extras' 'Add the extras bucket' "Enables Scoop's community extras bucket for additional package manifests. Only applies in Scoop mode."
+            Add-DotfilesTuiItem $State 'text' '__custom_buckets' 'Additional Scoop buckets' 'Optional space-separated bucket names or name=URL values. Only applies in Scoop mode.'
+            Add-DotfilesTuiItem $State 'text' 'DOTFILES_NERD_FONTS_BUCKET_URL' 'Nerd Fonts source' 'Repository used when the setup adds the Nerd Fonts Scoop bucket. Only applies in Scoop mode.'
             for ($index = 0; $index -lt $State.PackageOptions.Count; $index++) {
                 Add-DotfilesTuiItem $State 'package' $State.PackageOptions[$index] $State.PackageLabels[$index] $State.PackageDescriptions[$index]
             }
-            Add-DotfilesTuiItem $State 'text' '__custom_packages' 'Additional Scoop packages' 'Optional space-separated package names not shown in the checklist.'
+            Add-DotfilesTuiItem $State 'text' '__custom_packages' 'Additional packages' 'Optional space-separated names: Scoop package names in Scoop mode, or WinGet package IDs in WinGet mode.'
             Add-DotfilesTuiAction $State 'next' 'Continue to optional installers' 'Save these choices temporarily and open the next section.'
         }
         1 {
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_HERDR' 'Install Herdr' "Install Herdr's Windows beta using the source below when it is not already available."
             Add-DotfilesTuiItem $State 'text' 'DOTFILES_HERDR_INSTALL_URL' 'Herdr installer source' 'PowerShell installer URL used for the optional Herdr installation.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_AGENT_CLIS' 'Install optional AI command-line tools' 'Install Claude, Codex, Pi, and opencode with npm. Credentials remain local to each tool.'
-            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_ZSH' 'Install MSYS2 zsh' 'Install MSYS2 through Scoop, install zsh with pacman, and make it the default shell. Git Bash stays independent.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_ZSH' 'Install MSYS2 zsh' 'Install MSYS2 with zsh and the zsh plugins. Launch zsh from the MSYS2 shell after setup; Git Bash and PowerShell stay independent.'
             Add-DotfilesTuiAction $State 'back' 'Back to tools and packages' 'Return to the previous section without losing these choices.'
             Add-DotfilesTuiAction $State 'next' 'Continue to file locations' 'Open the detected Windows paths and application locations.'
         }
@@ -151,7 +175,6 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiAction $State 'next' 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
         }
         3 {
-            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_DEFAULT_SHELL' 'Default shell' 'The shell new terminals launch. Zsh runs through MSYS2 with the full Windows PATH; PowerShell keeps native commands and enters zsh with the zsh function.'
             Add-DotfilesTuiItem $State 'choice' 'DOTFILES_OH_MY_POSH_THEME' 'Prompt theme' 'Choose between the Tokyo Night and Rose Pine prompt color schemes.'
             Add-DotfilesTuiItem $State 'choice' 'DOTFILES_LINK_MODE' 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_BACKUP_EXISTING' 'Back up existing files' 'Move real files and directories aside before creating managed links.'
@@ -216,8 +239,8 @@ function Get-DotfilesTuiChoiceLabel {
     if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'symbolic') { return 'Symbolic links' }
     if ($Key -eq 'DOTFILES_OH_MY_POSH_THEME' -and $Value -eq 'tokyo-night-storm') { return 'Tokyo Night (recommended)' }
     if ($Key -eq 'DOTFILES_OH_MY_POSH_THEME' -and $Value -eq 'rose-pine-moon') { return 'Rose Pine Moon' }
-    if ($Key -eq 'DOTFILES_DEFAULT_SHELL' -and $Value -eq 'zsh') { return 'Zsh (recommended)' }
-    if ($Key -eq 'DOTFILES_DEFAULT_SHELL' -and $Value -eq 'powershell') { return 'PowerShell' }
+    if ($Key -eq 'DOTFILES_PACKAGE_MANAGER' -and $Value -eq 'scoop') { return 'Scoop (recommended)' }
+    if ($Key -eq 'DOTFILES_PACKAGE_MANAGER' -and $Value -eq 'winget') { return 'WinGet (alternative)' }
     return $Value
 }
 
@@ -327,14 +350,13 @@ function Write-DotfilesTuiSummary {
     Write-Host 'Windows dotfiles setup' -ForegroundColor Cyan
     Write-Host 'Review your choices before saving'
     Write-Host ''
-    Write-Host ("  Package manager: {0}" -f (Get-DotfilesTuiItemValue $State ([pscustomobject]@{ Kind = 'toggle'; Key = 'DOTFILES_INSTALL_SCOOP' })))
+    Write-Host ("  Package manager: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_PACKAGE_MANAGER' ([string] $State.Config.DOTFILES_PACKAGE_MANAGER)))
     Write-Host ("  Packages selected: {0}" -f $packageCount)
     Write-Host ("  Package list: {0}" -f (Clip-DotfilesTuiValue $packageList 68))
     Write-Host ("  Scoop buckets: {0}" -f (Clip-DotfilesTuiValue $bucketList 68))
     Write-Host ("  Installers: Herdr {0}, AI tools {1}, MSYS2 zsh {2}, Oh My Posh {3}" -f $herdrState, $agentState, $zshState, $ohMyPoshState)
     Write-Host ("  Main home: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_WINDOWS_HOME 68))
     Write-Host ("  Repository link: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_DOTFILES_LINK 68))
-    Write-Host ("  Default shell: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_DEFAULT_SHELL' $State.Config.DOTFILES_DEFAULT_SHELL))
     Write-Host ("  Prompt theme: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_OH_MY_POSH_THEME' $State.Config.DOTFILES_OH_MY_POSH_THEME))
     Write-Host ("  Linking: {0}, backups {1}, Git Bash integration {2}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_LINK_MODE' $State.Config.DOTFILES_LINK_MODE), $backupState, $hookState)
     Write-Host ("  Windows settings: {0}" -f $settingsState)
@@ -399,8 +421,8 @@ function Toggle-DotfilesTuiItem {
         'choice' {
             if ($Item.Key -eq 'DOTFILES_OH_MY_POSH_THEME') {
                 $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'tokyo-night-storm') { 'rose-pine-moon' } else { 'tokyo-night-storm' }
-            } elseif ($Item.Key -eq 'DOTFILES_DEFAULT_SHELL') {
-                $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'zsh') { 'powershell' } else { 'zsh' }
+            } elseif ($Item.Key -eq 'DOTFILES_PACKAGE_MANAGER') {
+                $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'winget') { 'scoop' } else { 'winget' }
             } else {
                 $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'junction') { 'symbolic' } else { 'junction' }
             }
@@ -564,7 +586,18 @@ function Get-DotfilesTuiSelectedBuckets {
 function Sync-DotfilesTuiToConfig {
     param([Parameter(Mandatory = $true)] $State)
 
-    $State.Config.DOTFILES_SCOOP_PACKAGES = Get-DotfilesTuiSelectedPackages $State
+    $scoopNames = @()
+    $wingetIds = @()
+    foreach ($package in $State.PackageOptions) {
+        if (-not $State.PackageSelected[$package]) { continue }
+        if ($package -eq 'oh-my-posh') { continue }
+        $scoopNames += $package
+        $wingetIds += $script:DotfilesTuiPackageMap[$package]
+    }
+    $scoopNames += @($State.CustomPackages)
+    $wingetIds += @($State.CustomPackages)
+    $State.Config.DOTFILES_SCOOP_PACKAGES = ($scoopNames -join ' ')
+    $State.Config.DOTFILES_WINGET_PACKAGES = ($wingetIds -join ' ')
     $State.Config.DOTFILES_SCOOP_BUCKETS = Get-DotfilesTuiSelectedBuckets $State
     $State.Config.DOTFILES_INSTALL_OH_MY_POSH = if ($State.PackageSelected['oh-my-posh']) { '1' } else { '0' }
 }

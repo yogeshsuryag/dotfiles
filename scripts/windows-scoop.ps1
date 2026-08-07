@@ -1,5 +1,12 @@
 # Scoop installation and package management for the Windows dotfiles engine.
 # Loaded by windows-common.ps1.
+#
+# Scoop is the default package manager because it is cleaner than WinGet for
+# CLI tools: every app installs into its own versioned directory,
+# ~/scoop/apps/<name>/current, with a shim on PATH. That predictable layout
+# means updates, version switches, and uninstalls are trivial, nothing is
+# scattered across %LOCALAPPDATA%\Microsoft\WinGet\Packages, and installs
+# never require elevation.
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
@@ -70,7 +77,7 @@ function Configure-DotfilesScoop {
     }
 }
 
-function Install-DotfilesPackages {
+function Install-DotfilesScoopPackages {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
     $packages = @([string] $Config.DOTFILES_SCOOP_PACKAGES -split '\s+' | Where-Object { $_ })
@@ -84,4 +91,14 @@ function Install-DotfilesPackages {
     Configure-DotfilesScoop $Config
     Write-Host '==> Installing declared Scoop packages'
     Invoke-DotfilesCommand 'scoop' (@('install') + $packages)
+}
+
+function Install-DotfilesPackages {
+    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+
+    if ([string] $Config.DOTFILES_PACKAGE_MANAGER -eq 'scoop') {
+        Install-DotfilesScoopPackages $Config
+        return
+    }
+    Install-DotfilesWingetPackages $Config
 }

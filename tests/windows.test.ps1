@@ -111,8 +111,8 @@ try {
     $config = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
     Initialize-DotfilesConfigDefaults $config | Out-Null
     Assert-DotfilesConfig $config
-    Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '1') 'MSYS2 zsh is enabled by default'
-    Assert-Test ([string] $config.DOTFILES_DEFAULT_SHELL -eq 'zsh') 'zsh is the default shell'
+    Assert-Test ([string] $config.DOTFILES_PACKAGE_MANAGER -eq 'scoop') 'Scoop is the default package manager'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the default prompt theme'
     $config.DOTFILES_EDITOR = 'C:\Program Files\Editor\editor.exe "$HOME"'
     $roundTripPath = Join-Path $testRoot 'roundtrip.env'
@@ -159,19 +159,25 @@ try {
     $state.PackageSelected['oh-my-posh'] = $true
     $state.CustomPackages = @('bat', 'delta')
     Sync-DotfilesTuiToConfig $state
-    Assert-Test ($stateConfig.DOTFILES_SCOOP_PACKAGES -eq 'neovim oh-my-posh starship ripgrep fd fzf jq lazygit nodejs Hack-NF bat delta') 'PowerShell TUI serializes package choices'
+    Assert-Test ($stateConfig.DOTFILES_SCOOP_PACKAGES -eq 'neovim starship ripgrep fd fzf jq lazygit nodejs bat delta') 'PowerShell TUI serializes Scoop package choices'
+    Assert-Test ($stateConfig.DOTFILES_WINGET_PACKAGES -eq 'neovim starship BurntSushi.ripgrep.MSVC sharkdp.fd junegunn.fzf jqlang.jq JesseDuffield.lazygit node bat delta') 'PowerShell TUI serializes WinGet package choices'
     Assert-Test ([string] $stateConfig.DOTFILES_INSTALL_OH_MY_POSH -eq '1') 'PowerShell TUI enables Oh My Posh with the package choice'
+    $managerItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_PACKAGE_MANAGER' })[0]
+    Assert-Test ($managerItem.Kind -eq 'choice') 'PowerShell TUI exposes the package manager choice'
+    Toggle-DotfilesTuiItem $state $managerItem
+    Assert-Test ($stateConfig.DOTFILES_PACKAGE_MANAGER -eq 'winget') 'PowerShell TUI toggles the package manager'
     $state.Page = 3
     Set-DotfilesTuiItems $state
-    $shellItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_DEFAULT_SHELL' })[0]
-    Assert-Test ($shellItem.Kind -eq 'choice') 'PowerShell TUI exposes the default shell choice'
-    Toggle-DotfilesTuiItem $state $shellItem
-    Assert-Test ($stateConfig.DOTFILES_DEFAULT_SHELL -eq 'powershell') 'PowerShell TUI toggles the default shell'
     $themeItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_OH_MY_POSH_THEME' })[0]
     Assert-Test ($themeItem.Kind -eq 'choice') 'PowerShell TUI exposes the prompt theme choice'
     Toggle-DotfilesTuiItem $state $themeItem
     Assert-Test ($stateConfig.DOTFILES_OH_MY_POSH_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the prompt theme'
     Pass-Test 'PowerShell TUI state covers documented package choices'
+
+    $wingetArguments = Get-DotfilesWingetInstallArguments 'BurntSushi.ripgrep.MSVC'
+    Assert-Test (($wingetArguments -contains '--silent') -and ($wingetArguments -contains '--disable-interactivity')) 'WinGet install arguments stay silent and noninteractive'
+    Assert-Test (-not ($wingetArguments -contains '--scope')) 'WinGet install arguments do not force a scope unsupported by portable packages'
+    Pass-Test 'WinGet install arguments avoid elevation traps'
 
     $settingsResult = Invoke-NativeScript (Join-Path $root 'scripts/windows-settings.ps1') @(
         '-DarkMode', '0', '-ShowFileExtensions', '0', '-ShowHiddenFiles', '0',
@@ -276,16 +282,59 @@ try {
     $profilePath = Join-Path $root 'home/.config/powershell/Microsoft.PowerShell_profile.ps1'
     Assert-Test (Test-Path -LiteralPath $profilePath -PathType Leaf) 'shared PowerShell profile is present'
     $profileContent = Get-Content -LiteralPath $profilePath -Raw
-    Assert-Test ($profileContent -match 'Set-DotfilesPSReadLineAutocomplete') 'PowerShell profile sets up PSReadLine autocomplete'
-    Assert-Test ($profileContent -match 'InlinePrediction') 'PowerShell profile themes inline predictions'
-    Assert-Test ($profileContent -match '-use-full-path') 'PowerShell profile launches zsh with the full Windows PATH'
-    Assert-Test ($profileContent -match 'function zsh') 'PowerShell profile exposes an on-demand zsh entry point'
-    Assert-Test ($profileContent -match 'DOTFILES_DEFAULT_SHELL') 'PowerShell profile honors the default shell choice'
+    Assert-Test ($profileContent -match 'starship init powershell') 'PowerShell profile initializes Starship'
+    Assert-Test ($profileContent -notmatch 'DOTFILES_DEFAULT_SHELL') 'PowerShell profile no longer references the removed default shell key'
     Assert-Test (Test-Path -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/tokyo-night-storm.omp.json') -PathType Leaf) 'Tokyo Night Oh My Posh theme is present'
     Assert-Test (Test-Path -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/rose-pine-moon.omp.json') -PathType Leaf) 'Rose Pine Moon Oh My Posh theme is present'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/tokyo-night-storm.omp.json') -Raw) -match '"type": "node"') 'Tokyo Night theme includes the node segment'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/rose-pine-moon.omp.json') -Raw) -match '"type": "execution_time"') 'Rose Pine theme includes the execution time segment'
     Pass-Test 'Shell autocomplete and themed prompt configuration are validated'
+
+    $trackedTerminal = Join-Path $root 'home/.config/windows-terminal/settings.json'
+    Assert-Test (Test-Path -LiteralPath $trackedTerminal -PathType Leaf) 'tracked Windows Terminal settings are present'
+    $jsonWithComments = @'
+{
+    // local customization
+    "profiles": {
+        "list": [
+            { "name": "My Profile", "guid": "{11111111-2222-3333-4444-555555555555}" }
+        ],
+        "defaults": {
+            "opacity": 55
+        }
+    },
+    "theme": "system",
+    "url": "https://example.com"
+}
+'@
+    $commentFree = Remove-DotfilesJsonComments $jsonWithComments
+    Assert-Test ($commentFree -notmatch 'local customization') 'JSONC stripper removes line comments'
+    Assert-Test ($commentFree -match 'https://example.com') 'JSONC stripper preserves slashes inside strings'
+    $terminalTarget = Join-Path $testRoot 'terminal/settings.json'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $terminalTarget) -Force | Out-Null
+    Set-Content -LiteralPath $terminalTarget -Value $jsonWithComments -NoNewline
+    Merge-DotfilesWindowsTerminalSettings -SourceFile $trackedTerminal -SettingsPath $terminalTarget
+    $terminalMerged = ConvertFrom-Json (Get-Content -LiteralPath $terminalTarget -Raw)
+    Assert-Test (@($terminalMerged.profiles.list).Count -eq 1 -and $terminalMerged.profiles.list[0].name -eq 'My Profile') 'Windows Terminal merge preserves the local profile list'
+    Assert-Test ($terminalMerged.profiles.defaults.opacity -eq 70) 'Windows Terminal merge applies tracked profile defaults'
+    Assert-Test (@($terminalMerged.schemes | Where-Object { $_.name -eq 'Tokyo Night Storm' }).Count -eq 1) 'Windows Terminal merge adds the tracked color scheme'
+    Assert-Test (@($terminalMerged.themes | Where-Object { $_.name -eq 'Tokyo Night' }).Count -eq 1) 'Windows Terminal merge adds the tracked theme'
+    Assert-Test ($terminalMerged.theme -eq 'Tokyo Night') 'Windows Terminal merge applies the tracked theme selection'
+    Assert-Test ($terminalMerged.defaultProfile -eq '{574e775e-4f2a-5b96-ac1e-a2962a402336}') 'Windows Terminal merge applies PowerShell 7 as the default profile'
+    Assert-Test ($terminalMerged.url -eq 'https://example.com') 'Windows Terminal merge preserves unrelated local settings'
+    $fakeLocalAppData = Join-Path $testRoot 'terminal/local-appdata'
+    $packageDir = Join-Path $fakeLocalAppData 'Packages/Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe/LocalState'
+    New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $packageDir 'settings.json') -Value '{}' -NoNewline
+    $wtConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $wtConfig | Out-Null
+    $wtConfig.DOTFILES_LOCAL_APPDATA = $fakeLocalAppData
+    $foundPath = Get-DotfilesWindowsTerminalSettingsPath $wtConfig
+    Assert-Test ($foundPath -eq (Join-Path $packageDir 'settings.json')) 'Windows Terminal settings discovery finds the packaged install'
+    $missingLocalAppData = Join-Path $testRoot 'terminal/missing-local-appdata'
+    $wtConfig.DOTFILES_LOCAL_APPDATA = $missingLocalAppData
+    Assert-Test ((Get-DotfilesWindowsTerminalSettingsPath $wtConfig) -eq (Join-Path $missingLocalAppData 'Microsoft/Windows Terminal/settings.json')) 'Windows Terminal settings discovery falls back to the classic path'
+    Pass-Test 'Windows Terminal settings merge preserves local profiles and applies tracked styling'
 
     $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
     if ($null -ne $nodeCommand) {

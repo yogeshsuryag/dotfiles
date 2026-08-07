@@ -1,6 +1,7 @@
 # dotfiles
 
-Windows developer setup managed from PowerShell and Scoop through a single
+Windows developer setup managed from PowerShell with Scoop as the default
+package manager and WinGet available as an alternative, all driven by a single
 native PowerShell engine in `scripts/`. The repository keeps application
 configuration in `home/` and links it into the Windows locations expected by
 each application. Git Bash remains a supported shell through the managed
@@ -10,13 +11,14 @@ each application. Git Bash remains a supported shell through the managed
 
 Running the bootstrap installs and configures:
 
-- Git for Windows and Git Bash
+- Git for Windows and Git Bash, installed through the default Scoop manager
 - Neovim with the rose-pine moon theme and locked lazy.nvim plugins
-- PowerShell profiles that launch MSYS2 zsh by default (or PowerShell itself when `DOTFILES_DEFAULT_SHELL=powershell`), with an optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors
-- Shell autocomplete: zsh-autosuggestions, zsh-syntax-highlighting, and fzf in zsh; PSReadLine inline predictions in PowerShell
-- Starship with the shared prompt configuration as the fallback prompt
-- ripgrep, fd, fzf, jq, lazygit, Node.js, and Hack Nerd Font
-- MSYS2 zsh launched from PowerShell through `msys2_shell.cmd`
+- PowerShell 7 (installed through WinGet when only Windows PowerShell is present), with a minimal profile that initializes the Starship prompt
+- Starship as the shared prompt for PowerShell, Git Bash, and zsh
+- Windows Terminal styled with the Tokyo Night color scheme and theme, merged into your existing settings without touching your profile list, with PowerShell 7 as the default profile
+- ripgrep, fd, fzf, jq, lazygit, and Node.js LTS, each in its own versioned directory under `~/scoop/apps/<name>/current`
+- Optional MSYS2 zsh with zsh-autosuggestions and zsh-syntax-highlighting, launched on demand from the MSYS2 shell
+- Optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors for zsh
 - Herdr's Windows beta installer, unless disabled in the local config
 - Claude, Codex, opencode, and Pi configuration files
 - Optional Pi theme, extensions, model overrides, and Calm presentation mode
@@ -34,26 +36,18 @@ installers.
 ## Requirements
 
 - Windows 10 or Windows 11
-- Git for Windows with Git Bash
-- Windows PowerShell 5.1 or PowerShell 7 (`pwsh`)
-- Network access for Scoop, package downloads, and Neovim's first plugin sync
+- Windows PowerShell 5.1 or PowerShell 7 (`pwsh`). The bootstrap installs
+  PowerShell 7 through WinGet when only Windows PowerShell is available.
+- Git for Windows if you use Git Bash as a shell before the bootstrap (the
+  bootstrap itself installs portable Git and configures Git Bash)
+- Network access for WinGet, package downloads, and Neovim's first plugin sync
 - No elevation is needed for the default junction and hard-link mode when the
   repository and Windows profile are on the same volume. Symbolic-link mode
-  requires Windows Developer Mode or administrator permission.
+  requires Windows Developer Mode or administrator permission. The one
+  exception is the initial PowerShell 7 installation, which raises a single
+  user account control prompt because the WinGet machine-scope package is an MSI.
 
-## Requirements
-
-- Windows 10 or Windows 11
-- Windows PowerShell 5.1 or PowerShell 7 (`pwsh`)
-- Git for Windows if you use Git Bash as a shell (the managed `~/.bashrc` hook)
-- Network access for Scoop, package downloads, and Neovim's first plugin sync
-- No elevation is needed for the default junction and hard-link mode when the
-  repository and Windows profile are on the same volume. Symbolic-link mode
-  requires Windows Developer Mode or administrator permission.
-
-Install Git for Windows first on a new machine if you want Git Bash, then clone
-this repository from PowerShell. Scoop can keep Git updated after the bootstrap
-begins.
+Clone this repository from Windows PowerShell, then bootstrap:
 
 ## Fresh-machine setup
 
@@ -82,13 +76,14 @@ in the custom fields. The answers are saved in the local, ignored
 The bootstrap script is idempotent and will:
 
 1. Validate the local configuration and detected Windows paths.
-2. Install Scoop for the current user when needed.
-3. Add the configured Scoop buckets and install the configured packages.
+2. Install PowerShell 7 through WinGet when only Windows PowerShell is present, then continue under `pwsh`.
+3. Install the configured packages through the default Scoop manager, each into its own versioned directory under `~/scoop/apps/<name>/current` with a shim on PATH; WinGet mode instead installs user-scope zip packages and extracts the official portable archives for Git, Node.js, Neovim, and Starship into `%LOCALAPPDATA%\Programs`.
 4. Install Herdr's Windows beta through its official installer when enabled.
-5. Install MSYS2 through Scoop, its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1` (the default).
+5. Install MSYS2 through Scoop (or WinGet in WinGet mode), its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1`.
 6. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
 7. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
-8. Apply only the Windows registry settings explicitly enabled in the config.
+8. Merge the tracked Tokyo Night styling into the Windows Terminal settings, backing up the original file once, and never touching your profile list.
+9. Apply only the Windows registry settings explicitly enabled in the config.
 
 Validate configuration without installing or changing anything:
 
@@ -107,14 +102,15 @@ Edit files under `home/` directly, then re-apply links and optional settings:
 ```
 
 Restart Git Bash after the first bootstrap so the managed shell hook is loaded.
-Restart PowerShell after bootstrap so its profile launches MSYS2 zsh. Git Bash
-remains available independently.
+Restart PowerShell after bootstrap so the PowerShell 7 profile and the Starship
+prompt are picked up. Git Bash remains available independently.
 
-The PowerShell profile launches MSYS2 zsh with the full Windows PATH, so tools
-installed for Windows (such as `herdr`, `pwsh`, and `nvim`) work inside zsh.
-From a PowerShell session, type `zsh` to drop into MSYS2 zsh at any time. To
-make new terminals open PowerShell instead, set `DOTFILES_DEFAULT_SHELL=powershell`
-in `windows-config.env`; `zsh` still works on demand.
+The PowerShell profile is intentionally minimal: it initializes the Starship
+prompt and nothing else, so native PowerShell stays the shell and behaves
+predictably. If you enabled `DOTFILES_INSTALL_ZSH`, launch the MSYS2 zsh shell
+from the MSYS2 entry in the Windows Start menu; zsh runs with the full Windows
+PATH, so tools installed for Windows (such as `herdr`, `pwsh`, and `nvim`) work
+inside it.
 
 ## Uninstall and restore
 
@@ -131,7 +127,8 @@ matching `.dotfiles-backup-*` target when the destination is empty. Use
 `--keep-backups` to leave backups untouched, or `--yes` after reviewing targets,
 for example `.\uninstall.ps1 --yes`.
 
-The uninstaller does not remove Scoop packages, Herdr, agent CLIs, or registry settings.
+The uninstaller does not remove WinGet or Scoop packages, Herdr, agent CLIs,
+Windows Terminal styling, or registry settings.
 
 ## Configuration variables
 
@@ -142,14 +139,17 @@ with plain-language descriptions and keeps the environment variable names out
 of the selection flow.
 The most useful values are:
 
-- `DOTFILES_SCOOP_PACKAGES` - the Scoop package list
+- `DOTFILES_PACKAGE_MANAGER` - `scoop` (default): every app installs into its own versioned directory under `~/scoop/apps/<name>/current` with a shim on PATH, so installs stay self-contained and never require elevation. `winget` is the alternative
+- `DOTFILES_WINGET_PACKAGES` - the WinGet package IDs in WinGet mode, where `git`, `node`, `neovim`, and `starship` are aliases for the official portable archive installs
+- `DOTFILES_LOCAL_TOOLS_DIR` - where the portable Git and Node.js archives are extracted in WinGet mode (default `%LOCALAPPDATA%\Programs`)
+- `DOTFILES_UPDATE_PACKAGES` - run `winget upgrade --all` before installing new packages in WinGet mode
+- `DOTFILES_SCOOP_PACKAGES` - the Scoop package list (the default package manager)
 - `DOTFILES_SCOOP_BUCKETS` - normal Scoop buckets, separated by spaces
 - `DOTFILES_NERD_FONTS_BUCKET_URL` - the Nerd Fonts bucket source
 - `DOTFILES_INSTALL_HERDR` - enable or disable the Herdr Windows installer
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
-- `DOTFILES_INSTALL_ZSH` - install Scoop MSYS2 and pacman zsh with the autocomplete plugins, which the PowerShell profile launches by default
-- `DOTFILES_DEFAULT_SHELL` - choose `zsh` (default) or `powershell` as the shell new terminals launch
-- `DOTFILES_INSTALL_OH_MY_POSH` - opt in to the Oh My Posh prompt in PowerShell and zsh (installable through the setup UI)
+- `DOTFILES_INSTALL_ZSH` - install MSYS2 and pacman zsh with the autocomplete plugins, launched on demand from the MSYS2 shell
+- `DOTFILES_INSTALL_OH_MY_POSH` - opt in to the Oh My Posh prompt in zsh (installable through the setup UI)
 - `DOTFILES_OH_MY_POSH_THEME` - choose `tokyo-night-storm` (default) or `rose-pine-moon`
 - `DOTFILES_WINDOWS_HOME`, `DOTFILES_LOCAL_APPDATA`, and `DOTFILES_APPDATA` - override detected Windows paths; Git Bash and Windows path forms are accepted
 - `DOTFILES_CLAUDE_CONFIG_DIR` and the other `*_CONFIG_DIR` overrides - point an application at a custom config location; when overriding Claude's directory, also update the hard-coded `%USERPROFILE%` path in `home/.claude/settings.json` so the status line keeps working
@@ -202,26 +202,29 @@ managed by this repository.
 The `cc` and `co` aliases intentionally run Claude and Codex with high-agency
 permissions. Review them before using them.
 
-## Neovim and the shell prompt
+## Neovim, Windows Terminal, and the shell prompt
 
 The first Neovim launch clones lazy.nvim and its plugins from GitHub. This needs
-network access once. The PowerShell profile launches MSYS2 zsh through
-`msys2_shell.cmd` with the full Windows PATH; its managed startup file sources
-`home/.zshrc`, which shares
-the environment, aliases, and prompt setup with the rest of the configuration.
-Selecting Oh My Posh in the setup UI (or setting `DOTFILES_INSTALL_OH_MY_POSH=1`)
-installs it through Scoop and applies the matching Tokyo Night or Rose Pine Moon
-theme in both PowerShell and zsh. Without it, Starship remains the prompt.
+network access once. The shared PowerShell profile (linked into both Windows
+PowerShell 5.1 and PowerShell 7) initializes the Starship prompt only; the same
+Starship configuration is sourced by Git Bash through the managed `~/.bashrc`
+hook and by zsh through `home/.zshrc`.
 
-Autocomplete is configured at the shell level, not in the prompt. The MSYS2
-setup installs zsh through pacman and clones `zsh-autosuggestions` and
-`zsh-syntax-highlighting` from their official repositories next to zsh, and
-`.zshrc` enables their plugins plus the fzf key bindings (Ctrl+R
-searches history, Ctrl+T picks files, Alt+C jumps to a directory), all tinted
-to the selected theme. When a session stays in PowerShell instead, the profile
-configures PSReadLine with inline history predictions, a Tab completion menu,
-and token colors from the same palettes; PSReadLine 2.1 falls back to history
-prediction and 2.0 to token colors without predictions.
+Windows Terminal gets a tracked Tokyo Night styling: the profile defaults
+(color scheme, bar cursor, translucent acrylic, padding), the Tokyo Night Storm
+color scheme, and a matching theme are merged into your existing `settings.json`
+on every bootstrap and rebuild. Your profile list and unrelated settings are
+never touched, and the first merge backs the original file up as
+`settings.json.dotfiles-backup-*`. Uninstall restores that backup.
+
+If you opt into MSYS2 zsh, the setup installs zsh through pacman and clones
+`zsh-autosuggestions` and `zsh-syntax-highlighting` from their official
+repositories next to zsh, and `.zshrc` enables their plugins plus the fzf key
+bindings (Ctrl+R searches history, Ctrl+T picks files, Alt+C jumps to a
+directory), all tinted to the selected theme. Selecting Oh My Posh in the setup
+UI (or setting `DOTFILES_INSTALL_OH_MY_POSH=1`) installs it and applies the
+matching Tokyo Night or Rose Pine Moon theme in zsh. Without it, Starship
+remains the prompt everywhere.
 
 ## Testing
 
@@ -231,9 +234,10 @@ From PowerShell, run the native Windows setup suite:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\windows.test.ps1
 ```
 
-It covers the configuration round-trip, links, hooks, MSYS2/zsh, prompts, and
-the Node configuration helpers, and targets Windows PowerShell 5.1 (no
-PowerShell 7-only syntax), so it can also be run with `pwsh`.
+It covers the configuration round-trip, WinGet install arguments, links,
+hooks, MSYS2/zsh, prompts, the Windows Terminal settings merge, and the Node
+configuration helpers, and targets Windows PowerShell 5.1 (no PowerShell 7-only
+syntax), so it can also be run with `pwsh`.
 
 From Git Bash, run the full-suite runner plus the Pi Calm suite. The runner
 (`tests/windows.test.sh`) invokes the PowerShell suite and then checks that the
