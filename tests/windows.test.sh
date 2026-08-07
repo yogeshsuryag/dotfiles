@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# End-to-end checks for the Windows setup entry points. The setup engine is
-# native PowerShell; this suite verifies the Git Bash wrappers and then runs
-# the full PowerShell setup suite.
+# End-to-end checks for the Windows setup. The setup engine is native
+# PowerShell; this suite runs the full PowerShell setup suite and then checks
+# that the managed Git Bash hook really works when sourced.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -30,8 +30,7 @@ command -v cygpath >/dev/null 2>&1 || fail "cygpath is unavailable"
 command -v powershell.exe >/dev/null 2>&1 || fail "powershell.exe is unavailable"
 
 test_shell_syntax() {
-  bash -n "$ROOT/bootstrap.sh" "$ROOT/rebuild.sh" "$ROOT/uninstall.sh" \
-    "$ROOT/home/.bashrc" "$ROOT/tests/lib.sh" "$ROOT/tests/pi-calm.test.sh" \
+  bash -n "$ROOT/home/.bashrc" "$ROOT/tests/lib.sh" "$ROOT/tests/pi-calm.test.sh" \
     "$ROOT/tests/windows.test.sh"
   pass "Bash scripts parse"
 }
@@ -46,33 +45,6 @@ test_native_power_shell_suite() {
   grep -Fq 'ok - PowerShell scripts parse under Windows PowerShell' "$output" \
     || fail "native PowerShell test suite did not run its parser checks"
   pass "Native PowerShell setup suite passes"
-}
-
-test_wrapper_preflight() {
-  local config_existed=0
-  [ -e "$ROOT/windows-config.env" ] && config_existed=1
-  bash "$ROOT/bootstrap.sh" --check >/dev/null \
-    || fail "bootstrap.sh --check rejected the example configuration"
-  bash "$ROOT/rebuild.sh" --check >/dev/null \
-    || fail "rebuild.sh --check rejected the example configuration"
-  bash "$ROOT/uninstall.sh" --check >/dev/null \
-    || fail "uninstall.sh --check rejected the example configuration"
-  [ "$config_existed" -eq 1 ] || [ ! -e "$ROOT/windows-config.env" ] \
-    || fail "wrapper --check created a local configuration file"
-  pass "Git Bash wrappers validate configuration without creating local state"
-}
-
-test_script_arguments() {
-  if bash "$ROOT/bootstrap.sh" --unsupported >/dev/null 2>&1; then
-    fail "bootstrap accepted an unsupported argument"
-  fi
-  if bash "$ROOT/rebuild.sh" --unsupported >/dev/null 2>&1; then
-    fail "rebuild accepted an unsupported argument"
-  fi
-  if bash "$ROOT/uninstall.sh" --unsupported >/dev/null 2>&1; then
-    fail "uninstall accepted an unsupported argument"
-  fi
-  pass "Bootstrap, rebuild, and uninstall wrappers reject unsupported arguments"
 }
 
 test_bash_hook() {
@@ -128,6 +100,4 @@ PS
 
 test_shell_syntax
 test_native_power_shell_suite
-test_wrapper_preflight
-test_script_arguments
 test_bash_hook

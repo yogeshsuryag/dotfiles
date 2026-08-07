@@ -1,11 +1,10 @@
 # dotfiles
 
-Windows developer setup managed from Git Bash, PowerShell, Scoop, and a single
-native PowerShell engine. The engine lives in `scripts/`, the Git Bash entry
-points (`bootstrap.sh`, `rebuild.sh`, `uninstall.sh`) are thin wrappers that
-launch their `.ps1` counterparts, and the repository keeps application
+Windows developer setup managed from PowerShell and Scoop through a single
+native PowerShell engine in `scripts/`. The repository keeps application
 configuration in `home/` and links it into the Windows locations expected by
-each application.
+each application. Git Bash remains a supported shell through the managed
+`~/.bashrc` hook; the setup logic itself is PowerShell-only.
 
 ## What you get
 
@@ -25,9 +24,8 @@ Running the bootstrap installs and configures:
 The setup wizard opens a keyboard-driven terminal UI instead of asking for raw
 environment variable names. It groups choices into tools, optional installers,
 file locations, shell/link behavior, and Windows settings. Use
-`./bootstrap.sh --configure`, `./rebuild.sh --configure`, or the equivalent
-PowerShell entry point to review all choices again; manual editing of
-`windows-config.env` is not required.
+`.\bootstrap.ps1 --configure` or `.\rebuild.ps1 --configure` to review all
+choices again; manual editing of `windows-config.env` is not required.
 
 Agent CLIs are not installed by default. Select them in the setup UI, or enable
 them in `windows-config.env`, only when you want the bootstrap to run their npm
@@ -43,23 +41,21 @@ installers.
   repository and Windows profile are on the same volume. Symbolic-link mode
   requires Windows Developer Mode or administrator permission.
 
-Git Bash is required to use the Bash entry point. Install Git for Windows first
-on a new machine, then clone this repository from Git Bash or PowerShell. Scoop
-can keep Git updated after the bootstrap begins. The Bash entry points delegate
-to the PowerShell engine, which is always available on Windows; the interactive
-setup wizard needs a real Windows console, so run the first bootstrap from
-PowerShell or Windows Terminal rather than from inside Git Bash.
+## Requirements
+
+- Windows 10 or Windows 11
+- Windows PowerShell 5.1 or PowerShell 7 (`pwsh`)
+- Git for Windows if you use Git Bash as a shell (the managed `~/.bashrc` hook)
+- Network access for Scoop, package downloads, and Neovim's first plugin sync
+- No elevation is needed for the default junction and hard-link mode when the
+  repository and Windows profile are on the same volume. Symbolic-link mode
+  requires Windows Developer Mode or administrator permission.
+
+Install Git for Windows first on a new machine if you want Git Bash, then clone
+this repository from PowerShell. Scoop can keep Git updated after the bootstrap
+begins.
 
 ## Fresh-machine setup
-
-```bash
-git clone https://github.com/yogeshsuryag/dotfiles.git
-cd dotfiles
-./bootstrap.sh
-```
-
-The native PowerShell path uses the same configuration and performs the same
-setup without requiring Bash to launch it:
 
 ```powershell
 git clone https://github.com/yogeshsuryag/dotfiles.git
@@ -80,11 +76,10 @@ and Shift+Tab to move backward. Press Escape or `q` to cancel. Package choices
 are individual checkboxes, and additional package or bucket names can be typed
 in the custom fields. The answers are saved in the local, ignored
 `windows-config.env` file, and Git Bash paths use forms such as
-`/c/Users/your-name`. Run `./bootstrap.sh --configure`,
-`./rebuild.sh --configure`, or `.\bootstrap.ps1 --configure` /
+`/c/Users/your-name`. Run `.\bootstrap.ps1 --configure` or
 `.\rebuild.ps1 --configure` to run the UI again.
 
-The bootstrap scripts are idempotent. Either frontend will:
+The bootstrap script is idempotent and will:
 
 1. Validate the local configuration and detected Windows paths.
 2. Install Scoop for the current user when needed.
@@ -97,12 +92,6 @@ The bootstrap scripts are idempotent. Either frontend will:
 
 Validate configuration without installing or changing anything:
 
-```bash
-./bootstrap.sh --check
-```
-
-The equivalent native PowerShell check is:
-
 ```powershell
 .\bootstrap.ps1 --check
 ```
@@ -112,12 +101,6 @@ The equivalent native PowerShell check is:
 ## Daily use
 
 Edit files under `home/` directly, then re-apply links and optional settings:
-
-```bash
-./rebuild.sh
-```
-
-From PowerShell, use:
 
 ```powershell
 .\rebuild.ps1
@@ -135,13 +118,7 @@ in `windows-config.env`; `zsh` still works on demand.
 
 ## Uninstall and restore
 
-Run the automatic uninstall from Git Bash:
-
-```bash
-./uninstall.sh
-```
-
-The native PowerShell equivalent is:
+Run the automatic uninstall:
 
 ```powershell
 .\uninstall.ps1
@@ -150,9 +127,9 @@ The native PowerShell equivalent is:
 The script asks for confirmation, removes only links that resolve back to this
 repository, removes only the managed Git Bash hook block, and restores the newest
 matching `.dotfiles-backup-*` target when the destination is empty. Use
-`./uninstall.sh --configure` to review configuration in the interactive UI,
-`--keep-backups` to leave backups untouched, or `--yes` after reviewing targets.
-PowerShell accepts the same flags, for example `.\uninstall.ps1 --yes`.
+`.\uninstall.ps1 --configure` to review configuration in the interactive UI,
+`--keep-backups` to leave backups untouched, or `--yes` after reviewing targets,
+for example `.\uninstall.ps1 --yes`.
 
 The uninstaller does not remove Scoop packages, Herdr, agent CLIs, or registry settings.
 
@@ -248,30 +225,25 @@ prediction and 2.0 to token colors without predictions.
 
 ## Testing
 
-From Git Bash, run the static checks that do not install packages or modify
-Windows settings:
-
-```bash
-bash -n bootstrap.sh rebuild.sh uninstall.sh tests/lib.sh tests/pi-calm.test.sh tests/windows.test.sh
-./bootstrap.sh --check
-./uninstall.sh --check
-bash tests/windows.test.sh
-bash tests/pi-calm.test.sh
-```
-
-The Git Bash wrapper suite (`tests/windows.test.sh`) verifies the wrapper
-behavior and then runs the full PowerShell setup suite, which covers the
-configuration round-trip, links, hooks, MSYS2/zsh, prompts, and the Node
-configuration helpers.
-
 From PowerShell, run the native Windows setup suite:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\windows.test.ps1
 ```
 
-The PowerShell implementation targets Windows PowerShell 5.1 and avoids
-PowerShell 7-only syntax, so the same suite can also be run with `pwsh`.
+It covers the configuration round-trip, links, hooks, MSYS2/zsh, prompts, and
+the Node configuration helpers, and targets Windows PowerShell 5.1 (no
+PowerShell 7-only syntax), so it can also be run with `pwsh`.
+
+From Git Bash, run the full-suite runner plus the Pi Calm suite. The runner
+(`tests/windows.test.sh`) invokes the PowerShell suite and then checks that the
+managed Git Bash hook actually works when sourced:
+
+```bash
+bash tests/windows.test.sh
+bash tests/pi-calm.test.sh
+```
+
 After bootstrap, validate `home/.zshrc` from the MSYS2 shell with
 `zsh -n "$DOTFILES_ROOT/home/.zshrc"`; Git Bash intentionally does not use or
 provide the MSYS2 zsh binary.
