@@ -817,7 +817,7 @@ function Invoke-DotfilesLinks {
     )
 
     Write-Host '==> Linking Windows application configurations'
-    $scriptPath = Join-Path $Root 'windows-links.ps1'
+    $scriptPath = Join-Path $Root 'scripts/windows-links.ps1'
     & $scriptPath `
         -RepoRoot (ConvertTo-NativePath $Root) `
         -UserHome (ConvertTo-NativePath $Config.DOTFILES_WINDOWS_HOME) `
@@ -826,6 +826,7 @@ function Invoke-DotfilesLinks {
         -XdgConfigHome (ConvertTo-NativePath $Config.DOTFILES_XDG_CONFIG_HOME) `
         -DotfilesLinkPath (ConvertTo-NativePath $Config.DOTFILES_DOTFILES_LINK) `
         -NvimConfigDir (ConvertTo-NativePath $Config.DOTFILES_NVIM_CONFIG_DIR) `
+        -DocumentsDir (Join-Path (ConvertTo-NativePath $Config.DOTFILES_WINDOWS_HOME) 'Documents') `
         -HerdrConfigDir (ConvertTo-NativePath $Config.DOTFILES_HERDR_CONFIG_DIR) `
         -ClaudeConfigDir (ConvertTo-NativePath $Config.DOTFILES_CLAUDE_CONFIG_DIR) `
         -CodexConfigDir (ConvertTo-NativePath $Config.DOTFILES_CODEX_CONFIG_DIR) `
@@ -843,7 +844,7 @@ function Invoke-DotfilesWindowsSettings {
 
     if ([string] $Config.DOTFILES_APPLY_WINDOWS_SETTINGS -ne '1') { return }
     Write-Host '==> Applying opted-in Windows settings'
-    & (Join-Path $Root 'windows-settings.ps1') `
+    & (Join-Path $Root 'scripts/windows-settings.ps1') `
         -DarkMode ([string] $Config.DOTFILES_DARK_MODE) `
         -ShowFileExtensions ([string] $Config.DOTFILES_SHOW_FILE_EXTENSIONS) `
         -ShowHiddenFiles ([string] $Config.DOTFILES_SHOW_HIDDEN_FILES) `
@@ -862,7 +863,7 @@ function Invoke-DotfilesUninstallLinks {
         [Parameter(Mandatory = $true)] [string] $RestoreBackups
     )
 
-    & (Join-Path $Root 'windows-uninstall.ps1') `
+    & (Join-Path $Root 'scripts/windows-uninstall.ps1') `
         -RepoRoot (ConvertTo-NativePath $Root) `
         -UserHome (ConvertTo-NativePath $Config.DOTFILES_WINDOWS_HOME) `
         -LocalAppData (ConvertTo-NativePath $Config.DOTFILES_LOCAL_APPDATA) `
@@ -870,6 +871,7 @@ function Invoke-DotfilesUninstallLinks {
         -XdgConfigHome (ConvertTo-NativePath $Config.DOTFILES_XDG_CONFIG_HOME) `
         -DotfilesLinkPath (ConvertTo-NativePath $Config.DOTFILES_DOTFILES_LINK) `
         -NvimConfigDir (ConvertTo-NativePath $Config.DOTFILES_NVIM_CONFIG_DIR) `
+        -DocumentsDir (Join-Path (ConvertTo-NativePath $Config.DOTFILES_WINDOWS_HOME) 'Documents') `
         -HerdrConfigDir (ConvertTo-NativePath $Config.DOTFILES_HERDR_CONFIG_DIR) `
         -ClaudeConfigDir (ConvertTo-NativePath $Config.DOTFILES_CLAUDE_CONFIG_DIR) `
         -CodexConfigDir (ConvertTo-NativePath $Config.DOTFILES_CODEX_CONFIG_DIR) `

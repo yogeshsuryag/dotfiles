@@ -19,7 +19,7 @@ if ($argumentList.Count -gt 1 -or ($argumentList.Count -eq 1 -and $argumentList[
 }
 $mode = if ($argumentList.Count -eq 1) { $argumentList[0] } else { '' }
 
-. (Join-Path $root 'windows-common.ps1')
+. (Join-Path $root 'scripts/windows-common.ps1')
 
 try {
     $configuration = Get-DotfilesConfiguration -Root $root -CheckOnly:($mode -eq '--check') -Configure:($mode -eq '--configure')

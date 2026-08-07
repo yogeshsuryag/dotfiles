@@ -95,9 +95,10 @@ function Get-LinkArguments {
 
 try {
     New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
-    . (Join-Path $root 'windows-common.ps1')
+    . (Join-Path $root 'scripts/windows-common.ps1')
 
     $scriptsToParse = @(Get-ChildItem -LiteralPath $root -Filter '*.ps1' -File)
+    $scriptsToParse += Get-ChildItem -LiteralPath (Join-Path $root 'scripts') -Filter '*.ps1' -File
     $scriptsToParse += Get-ChildItem -LiteralPath (Join-Path $root 'home/.config/powershell') -Filter '*.ps1' -File
     foreach ($script in $scriptsToParse) {
         $tokens = $null
@@ -172,7 +173,7 @@ try {
     Assert-Test ($stateConfig.DOTFILES_OH_MY_POSH_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the prompt theme'
     Pass-Test 'PowerShell TUI state covers documented package choices'
 
-    $settingsResult = Invoke-NativeScript (Join-Path $root 'windows-settings.ps1') @(
+    $settingsResult = Invoke-NativeScript (Join-Path $root 'scripts/windows-settings.ps1') @(
         '-DarkMode', '0', '-ShowFileExtensions', '0', '-ShowHiddenFiles', '0',
         '-HideDesktopIcons', '0', '-TaskbarAutoHide', '0', '-KeyboardRepeat', '0',
         '-RestartExplorer', '0'
@@ -184,7 +185,7 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $fixture 'user/.claude') -Force | Out-Null
     $settingsTarget = Join-Path $fixture 'user/.claude/settings.json'
     Set-Content -LiteralPath $settingsTarget -Value 'pre-existing settings' -NoNewline
-    $linkScript = Join-Path $root 'windows-links.ps1'
+    $linkScript = Join-Path $root 'scripts/windows-links.ps1'
     $linkArguments = Get-LinkArguments $fixture $root
     $linkResult = Invoke-NativeScript $linkScript $linkArguments
     Assert-Test ($linkResult.ExitCode -eq 0) 'Windows link helper created disposable links without elevation'
@@ -209,7 +210,7 @@ try {
         }
         $uninstallArguments += $linkArguments[$index], $linkArguments[$index + 1]
     }
-    $uninstallResult = Invoke-NativeScript (Join-Path $root 'windows-uninstall.ps1') ($uninstallArguments + @('-RestoreBackups', '1'))
+    $uninstallResult = Invoke-NativeScript (Join-Path $root 'scripts/windows-uninstall.ps1') ($uninstallArguments + @('-RestoreBackups', '1'))
     Assert-Test ($uninstallResult.ExitCode -eq 0) 'Windows uninstall helper removed disposable links'
     Assert-Test ((Get-Content -LiteralPath $settingsTarget -Raw) -eq 'pre-existing settings') 'Windows uninstall helper restored the preserved settings file'
     Assert-Test (-not (Test-Path -LiteralPath $profile7Target)) 'Windows uninstall helper removed the PowerShell profile link'
@@ -267,14 +268,41 @@ try {
     Assert-Test ($zshrcContent -match 'zsh-autosuggestions') 'zsh configuration loads zsh-autosuggestions'
     Assert-Test ($zshrcContent -match 'zsh-syntax-highlighting') 'zsh configuration loads zsh-syntax-highlighting'
     Assert-Test ($zshrcContent -match 'fzf --zsh') 'zsh configuration enables fzf key bindings'
-    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-autosuggestions.git') 'MSYS2 setup installs the zsh-autosuggestions plugin from its repository'
-    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-syntax-highlighting.git') 'MSYS2 setup installs the zsh-syntax-highlighting plugin from its repository'
-    $profileContent = Get-Content -LiteralPath (Join-Path $root 'home/.config/powershell/Microsoft.PowerShell_profile.ps1') -Raw
+    Assert-Test ($zshrcContent -match 'eval "\$\(starship init zsh\)"') 'zsh configuration falls back to Starship'
+    Assert-Test ($zshrcContent -match 'oh-my-posh init zsh') 'zsh configuration initializes Oh My Posh'
+    Assert-Test ($zshrcContent -match 'DOTFILES_INSTALL_OH_MY_POSH') 'zsh configuration honors the Oh My Posh opt-in'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-autosuggestions.git') 'MSYS2 setup installs the zsh-autosuggestions plugin from its repository'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-common.ps1') -Raw) -match 'github.com/zsh-users/zsh-syntax-highlighting.git') 'MSYS2 setup installs the zsh-syntax-highlighting plugin from its repository'
+    $profilePath = Join-Path $root 'home/.config/powershell/Microsoft.PowerShell_profile.ps1'
+    Assert-Test (Test-Path -LiteralPath $profilePath -PathType Leaf) 'shared PowerShell profile is present'
+    $profileContent = Get-Content -LiteralPath $profilePath -Raw
     Assert-Test ($profileContent -match 'Set-DotfilesPSReadLineAutocomplete') 'PowerShell profile sets up PSReadLine autocomplete'
     Assert-Test ($profileContent -match 'InlinePrediction') 'PowerShell profile themes inline predictions'
+    Assert-Test ($profileContent -match '-use-full-path') 'PowerShell profile launches zsh with the full Windows PATH'
+    Assert-Test ($profileContent -match 'function zsh') 'PowerShell profile exposes an on-demand zsh entry point'
+    Assert-Test ($profileContent -match 'DOTFILES_DEFAULT_SHELL') 'PowerShell profile honors the default shell choice'
+    Assert-Test (Test-Path -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/tokyo-night-storm.omp.json') -PathType Leaf) 'Tokyo Night Oh My Posh theme is present'
+    Assert-Test (Test-Path -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/rose-pine-moon.omp.json') -PathType Leaf) 'Rose Pine Moon Oh My Posh theme is present'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/tokyo-night-storm.omp.json') -Raw) -match '"type": "node"') 'Tokyo Night theme includes the node segment'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/rose-pine-moon.omp.json') -Raw) -match '"type": "execution_time"') 'Rose Pine theme includes the execution time segment'
     Pass-Test 'Shell autocomplete and themed prompt configuration are validated'
+
+    $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+    if ($null -ne $nodeCommand) {
+        foreach ($scriptPath in @(
+            (Join-Path $root 'home/.claude/status-line.js'),
+            (Join-Path $root 'home/.pi/agent/extensions/terminal-status-title.js')
+        )) {
+            $nodeResult = & $nodeCommand.Source --check $scriptPath 2>&1 | Out-String
+            Assert-Test ($LASTEXITCODE -eq 0) "Node configuration helper parses: $($scriptPath -replace [regex]::Escape($root), '')"
+        }
+        $statusFixture = '{"model":{"display_name":"Test Model"},"context_window":{"used_percentage":42.4}}'
+        $renderResult = $statusFixture | & $nodeCommand.Source (Join-Path $root 'home/.claude/status-line.js') 2>&1 | Out-String
+        Assert-Test (($renderResult.Trim() -eq 'Test Model | ctx: 42% used')) 'Claude status line renders the expected output'
+        Pass-Test 'Node configuration helpers parse and render'
+    } else {
+        Write-Host 'skip: node not found for JSON and status line checks'
+    }
 
     Write-Host "1..$passed"
 } catch {

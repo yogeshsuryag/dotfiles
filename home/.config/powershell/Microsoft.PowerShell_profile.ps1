@@ -118,7 +118,7 @@ $profileRootValue = if ($env:DOTFILES_ROOT) {
     $env:DOTFILES_ROOT
 } elseif ($env:DOTFILES_DOTFILES_LINK) {
     $env:DOTFILES_DOTFILES_LINK
-} elseif ($script:DotfilesProfileConfig.ContainsKey('DOTFILES_DOTFILES_LINK')) {
+} elseif ($script:DotfilesProfileConfig.ContainsKey('DOTFILES_DOTFILES_LINK') -and -not [string]::IsNullOrWhiteSpace([string] $script:DotfilesProfileConfig.DOTFILES_DOTFILES_LINK)) {
     [string] $script:DotfilesProfileConfig.DOTFILES_DOTFILES_LINK
 } else {
     Join-Path $HOME '.dotfiles'
@@ -145,7 +145,7 @@ function Initialize-DotfilesOhMyPosh {
     }
     $command = Get-Command 'oh-my-posh' -ErrorAction SilentlyContinue
     $themePath = Get-DotfilesOhMyPoshThemePath
-    if ($null -eq $command -or -not (Test-Path -LiteralPath $themePath -PathType Leaf)) {
+    if ([string]::IsNullOrWhiteSpace($themePath) -or $null -eq $command -or -not (Test-Path -LiteralPath $themePath -PathType Leaf)) {
         return
     }
     & $command.Source init pwsh --config $themePath | Invoke-Expression
@@ -207,14 +207,6 @@ $script:DotfilesThemePalettes = @{
         Punctuation = '#c0caf5'
         Prompt = '#7aa2f7'
         Prediction = '#565f89'
-        LegacyForeground = 'White'
-        LegacyBackground = 'DarkBlue'
-        LegacyPrompt = 'DarkCyan'
-        LegacyPrediction = 'DarkGray'
-        LegacyError = 'Red'
-        LegacyComment = 'DarkGray'
-        LegacyString = 'DarkYellow'
-        LegacyKeyword = 'Cyan'
     }
     'rose-pine-moon' = @{
         Command = '#e0def4'
@@ -231,14 +223,6 @@ $script:DotfilesThemePalettes = @{
         Punctuation = '#e0def4'
         Prompt = '#c4a7e7'
         Prediction = '#6e6a86'
-        LegacyForeground = 'White'
-        LegacyBackground = 'DarkBlue'
-        LegacyPrompt = 'DarkCyan'
-        LegacyPrediction = 'DarkGray'
-        LegacyError = 'Red'
-        LegacyComment = 'DarkGray'
-        LegacyString = 'DarkYellow'
-        LegacyKeyword = 'Cyan'
     }
 }
 
@@ -251,36 +235,31 @@ function Set-DotfilesPSReadLineTheme {
     }
 
     $psReadLineModule = Get-Module PSReadLine -ErrorAction SilentlyContinue
-    if ($null -ne $psReadLineModule -and $psReadLineModule.Version -ge [version] '2.2.0') {
-        Set-PSReadLineOption -Colors @{
-            Command = $palette.Command
-            Parameter = $palette.Parameter
-            String = $palette.String
-            Comment = $palette.Comment
-            Error = $palette.Error
-            Keyword = $palette.Keyword
-            Selection = $palette.Selection
-            Operator = $palette.Operator
-            Variable = $palette.Variable
-            Number = $palette.Number
-            Type = $palette.Type
-            Punctuation = $palette.Punctuation
-            Prompt = $palette.Prompt
-            InlinePrediction = $palette.Prediction
-        } -ErrorAction SilentlyContinue
-    } elseif ($null -ne $psReadLineModule) {
-        Set-PSReadLineOption -Colors @{
-            Command = $palette.LegacyForeground
-            Parameter = $palette.LegacyForeground
-            String = $palette.LegacyString
-            Comment = $palette.LegacyComment
-            Error = $palette.LegacyError
-            Keyword = $palette.LegacyKeyword
-            Selection = $palette.LegacyBackground
-            Prompt = $palette.LegacyPrompt
-            InlinePrediction = $palette.LegacyPrediction
-        } -ErrorAction SilentlyContinue
+    if ($null -eq $psReadLineModule) {
+        return
     }
+
+    $colors = @{
+        Command = $palette.Command
+        Parameter = $palette.Parameter
+        String = $palette.String
+        Comment = $palette.Comment
+        Error = $palette.Error
+        Keyword = $palette.Keyword
+        Selection = $palette.Selection
+        Operator = $palette.Operator
+        Variable = $palette.Variable
+        Number = $palette.Number
+        Type = $palette.Type
+    }
+    if ($psReadLineModule.Version -ge [version] '2.2.0') {
+        $colors.Punctuation = $palette.Punctuation
+        $colors.Prompt = $palette.Prompt
+        $colors.InlinePrediction = $palette.Prediction
+    } elseif ($psReadLineModule.Version -ge [version] '2.1.0') {
+        $colors.Prediction = $palette.Prediction
+    }
+    Set-PSReadLineOption -Colors $colors -ErrorAction SilentlyContinue
 
     if ($PSStyle) {
         $PSStyle.Formatting.Error = $PSStyle.Foreground.FromRgb(247, 118, 142)
@@ -297,10 +276,9 @@ function Set-DotfilesPSReadLineAutocomplete {
     }
 
     Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete -ErrorAction SilentlyContinue
-    Set-PSReadLineOption -HistorySearchCursorMovesToEnd $true -ShowToolTips $true -ErrorAction SilentlyContinue
     if ($psReadLineModule.Version -ge [version] '2.2.0') {
-        Set-PSReadLineOption -PredictionSource HistoryAndPlugin -PredictionViewStyle InlineView -ErrorAction SilentlyContinue
-    } else {
+        Set-PSReadLineOption -PredictionSource HistoryAndPlugin -PredictionViewStyle InlineView -HistorySearchCursorMovesToEnd $true -ShowToolTips $true -ErrorAction SilentlyContinue
+    } elseif ($psReadLineModule.Version -ge [version] '2.1.0') {
         Set-PSReadLineOption -PredictionSource History -ErrorAction SilentlyContinue
     }
 }

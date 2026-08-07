@@ -29,7 +29,7 @@ foreach ($argument in @($CliArguments | Where-Object { $null -ne $_ -and $_ -ne 
     }
 }
 
-. (Join-Path $root 'windows-common.ps1')
+. (Join-Path $root 'scripts/windows-common.ps1')
 
 try {
     $configuration = Get-DotfilesConfiguration -Root $root -CheckOnly:$checkOnly -Configure:($configure -and -not $checkOnly)
