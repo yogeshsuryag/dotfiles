@@ -443,6 +443,22 @@ Write-Output "result=$result action=$($plan[0].Action)"
     Assert-Test ((Get-DotfilesWindowsTerminalSettingsPath $wtConfig) -eq (Join-Path $missingLocalAppData 'Microsoft/Windows Terminal/settings.json')) 'Windows Terminal settings discovery falls back to the classic path'
     Pass-Test 'Windows Terminal settings merge preserves local profiles and applies tracked styling'
 
+    $roseTerminalSource = Join-Path $root 'home/.config/windows-terminal/settings.rose-pine-moon.json'
+    Assert-Test (Test-Path -LiteralPath $roseTerminalSource -PathType Leaf) 'tracked Rose Pine Moon Windows Terminal settings are present'
+    $roseTarget = Join-Path $testRoot 'terminal/rose-settings.json'
+    Merge-DotfilesWindowsTerminalSettings -SourceFile $roseTerminalSource -SettingsPath $roseTarget
+    $roseMerged = ConvertFrom-Json (Get-Content -LiteralPath $roseTarget -Raw)
+    Assert-Test ($roseMerged.profiles.defaults.colorScheme -eq 'Rose Pine Moon') 'Rose Pine Moon merge applies its color scheme'
+    Assert-Test ($roseMerged.theme -eq 'Rose Pine Moon') 'Rose Pine Moon merge applies its theme selection'
+    Assert-Test ($roseMerged.defaultProfile -eq '{574e775e-4f2a-5b96-ac1e-a2962a402336}') 'Rose Pine Moon merge keeps PowerShell 7 as the default profile'
+    $themeConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $themeConfig | Out-Null
+    $themeConfig.DOTFILES_DOTFILES_LINK = $root
+    Assert-Test ((Get-DotfilesWindowsTerminalSourceFile $themeConfig) -eq $trackedTerminal) 'Windows Terminal source selection defaults to Tokyo Night'
+    $themeConfig.DOTFILES_COLOR_THEME = 'rose-pine-moon'
+    Assert-Test ((Get-DotfilesWindowsTerminalSourceFile $themeConfig) -eq $roseTerminalSource) 'Windows Terminal source selection follows the color theme'
+    Pass-Test 'Windows Terminal styling follows the chosen color theme'
+
     $herdrConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
     Initialize-DotfilesConfigDefaults $herdrConfig | Out-Null
     $herdrDir = Join-Path $testRoot 'herdr'

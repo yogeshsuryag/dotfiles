@@ -1,0 +1,60 @@
+{
+  "profiles": {
+    "defaults": {
+      "colorScheme": "Rose Pine Moon",
+      "cursorShape": "bar",
+      "opacity": 70,
+      "padding": "8",
+      "startingDirectory": null,
+      "unfocusedAppearance": {
+        "foreground": "#908CAA",
+        "opacity": 60,
+        "useAcrylic": true
+      },
+      "useAcrylic": true
+    }
+  },
+  "schemes": [
+    {
+      "name": "Rose Pine Moon",
+      "black": "#232136",
+      "red": "#EB6F92",
+      "green": "#3E8FB0",
+      "yellow": "#F6C177",
+      "blue": "#9CCFD8",
+      "purple": "#C4A7E7",
+      "cyan": "#EA9A97",
+      "white": "#E0DEF4",
+      "brightBlack": "#56546E",
+      "brightRed": "#EB6F92",
+      "brightGreen": "#3E8FB0",
+      "brightYellow": "#F6C177",
+      "brightBlue": "#9CCFD8",
+      "brightPurple": "#C4A7E7",
+      "brightCyan": "#EA9A97",
+      "brightWhite": "#E0DEF4",
+      "foreground": "#E0DEF4",
+      "background": "#232136"
+    }
+  ],
+  "themes": [
+    {
+      "name": "Rose Pine Moon",
+      "window": {
+        "applicationTheme": "dark"
+      },
+      "tab": {
+        "background": "#232136",
+        "showCloseButton": "always",
+        "unfocusedTitleBarColor": "#191724"
+      },
+      "terminal": {
+        "unfocusedTitleBarColor": "#232136"
+      }
+    }
+  ],
+  "showTabsInTitlebar": true,
+  "tabWidthMode": "equal",
+  "theme": "Rose Pine Moon",
+  "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}"
+}

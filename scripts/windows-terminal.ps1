@@ -210,14 +210,29 @@ function Backup-DotfilesWindowsTerminalSettings {
     Write-Host "Backed up Windows Terminal settings to $backup"
 }
 
+function Get-DotfilesWindowsTerminalSourceFile {
+    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+
+    $fileName = if ([string] $Config.DOTFILES_COLOR_THEME -eq 'rose-pine-moon') { 'settings.rose-pine-moon.json' } else { 'settings.json' }
+    $relative = 'home/.config/windows-terminal/' + $fileName
+    $linkBased = Join-Path (ConvertTo-NativePath ([string] $Config.DOTFILES_DOTFILES_LINK)) $relative
+    if (Test-Path -LiteralPath $linkBased -PathType Leaf) {
+        return $linkBased
+    }
+    if ($env:DOTFILES_ROOT) {
+        $rootBased = Join-Path (ConvertTo-NativePath $env:DOTFILES_ROOT) $relative
+        if (Test-Path -LiteralPath $rootBased -PathType Leaf) {
+            return $rootBased
+        }
+    }
+    return $null
+}
+
 function Invoke-DotfilesWindowsTerminalSettings {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
-    $sourceFile = Join-Path (ConvertTo-NativePath ([string] $Config.DOTFILES_DOTFILES_LINK)) 'home/.config/windows-terminal/settings.json'
-    if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf) -and $env:DOTFILES_ROOT) {
-        $sourceFile = Join-Path (ConvertTo-NativePath $env:DOTFILES_ROOT) 'home/.config/windows-terminal/settings.json'
-    }
-    if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
+    $sourceFile = Get-DotfilesWindowsTerminalSourceFile $Config
+    if ($null -eq $sourceFile) {
         Write-Warning 'Tracked Windows Terminal settings were not found; skipping.'
         return
     }
