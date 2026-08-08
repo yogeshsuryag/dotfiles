@@ -18,5 +18,8 @@ copy_mode  = "prefix+y"  # herdr's copy-mode entry key; copy-mode's own internal
 agent_panel_sort = "spaces"
 
 [theme]
-name = "catppuccin"
+# The color theme placeholder is replaced by the setup with the chosen
+# DOTFILES_COLOR_THEME (tokyo-night or rose-pine). This file is rendered to
+# config.toml by scripts/windows-theme.ps1; the rendered file is gitignored.
+name = "{DOTFILES_COLOR_THEME}"
 auto_switch = false

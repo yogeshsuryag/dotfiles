@@ -57,6 +57,7 @@ try {
     Write-Host '==> Installing Git Bash configuration hook'
     Invoke-DotfilesLinks $root $config
     Install-DotfilesBashHook $root $config
+    Write-DotfilesHerdrConfig $root $config
     Invoke-DotfilesWindowsTerminalSettings $config
     Invoke-DotfilesWindowsSettings $root $config
 

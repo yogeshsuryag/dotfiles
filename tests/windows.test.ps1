@@ -443,6 +443,28 @@ Write-Output "result=$result action=$($plan[0].Action)"
     Assert-Test ((Get-DotfilesWindowsTerminalSettingsPath $wtConfig) -eq (Join-Path $missingLocalAppData 'Microsoft/Windows Terminal/settings.json')) 'Windows Terminal settings discovery falls back to the classic path'
     Pass-Test 'Windows Terminal settings merge preserves local profiles and applies tracked styling'
 
+    $herdrConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $herdrConfig | Out-Null
+    $herdrDir = Join-Path $testRoot 'herdr'
+    $herdrConfig.DOTFILES_HERDR_CONFIG_DIR = $herdrDir
+    Write-DotfilesHerdrConfig $root $herdrConfig
+    $herdrToml = Join-Path $herdrDir 'config.toml'
+    Assert-Test (Test-Path -LiteralPath $herdrToml -PathType Leaf) 'Herdr config generation writes config.toml'
+    Assert-Test ((Get-Content -LiteralPath $herdrToml -Raw) -match 'name = "tokyo-night"') 'Herdr config generation applies the Tokyo Night theme'
+    Write-DotfilesHerdrConfig $root $herdrConfig
+    Assert-Test ((Get-Content -LiteralPath $herdrToml -Raw) -match 'name = "tokyo-night"') 'Herdr config generation is idempotent'
+    $herdrConfig.DOTFILES_COLOR_THEME = 'rose-pine-moon'
+    Write-DotfilesHerdrConfig $root $herdrConfig
+    Assert-Test ((Get-Content -LiteralPath $herdrToml -Raw) -match 'name = "rose-pine"') 'Herdr config generation maps Rose Pine Moon to the herdr rose-pine theme'
+    Remove-DotfilesHerdrConfig $root $herdrConfig
+    Assert-Test (-not (Test-Path -LiteralPath $herdrToml)) 'Herdr config removal deletes the generated file'
+    Set-Content -LiteralPath $herdrToml -Value 'custom content' -NoNewline
+    Remove-DotfilesHerdrConfig $root $herdrConfig
+    Assert-Test ((Get-Content -LiteralPath $herdrToml -Raw) -eq 'custom content') 'Herdr config removal preserves unmanaged content'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root '.gitignore') -Raw) -match 'home/.config/herdr/config.toml') '.gitignore guards the generated Herdr config'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/herdr/config.toml.template') -Raw) -match 'DOTFILES_COLOR_THEME') 'Herdr template carries the color theme placeholder'
+    Pass-Test 'Herdr config follows the color theme and stays restorable'
+
     $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
     if ($null -ne $nodeCommand) {
         foreach ($scriptPath in @(

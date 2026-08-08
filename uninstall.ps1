@@ -66,6 +66,8 @@ try {
 
     Write-Host '==> Removing repository-managed Windows links'
     Invoke-DotfilesUninstallLinks $root $config $restoreBackups
+    Write-Host '==> Removing the generated Herdr config'
+    Remove-DotfilesHerdrConfig $root $config
     Write-Host '==> Restoring Windows Terminal settings'
     Restore-DotfilesWindowsTerminalSettings $config
     Write-Host '==> Removing the managed Git Bash hook'

@@ -3,6 +3,7 @@ home/.config/herdr/*.log
 home/.config/herdr/*.lock
 home/.config/herdr/session.json
 home/.config/herdr/*.sock
+home/.config/herdr/config.toml
 
 # Local Windows configuration and setup backups
 windows-config.env
