@@ -12,12 +12,12 @@ each application. Git Bash remains a supported shell through the managed
 Running the bootstrap installs and configures:
 
 - Git for Windows and Git Bash, installed through the default Scoop manager
-- Neovim with the rose-pine moon theme and locked lazy.nvim plugins
+- Neovim with the Tokyo Night (default) or Rose Pine Moon color scheme and locked lazy.nvim plugins
 - PowerShell 7 (installed through WinGet when only Windows PowerShell is present), with a minimal profile that initializes the Starship prompt
 - Starship as the shared prompt for PowerShell, Git Bash, and zsh
-- Windows Terminal styled with the Tokyo Night color scheme and theme, merged into your existing settings without touching your profile list, with PowerShell 7 as the default profile
+- Windows Terminal styled with the chosen color theme (Tokyo Night by default, Rose Pine Moon as the alternative), merged into your existing settings, with PowerShell 7 as the default profile and a managed `zsh (MSYS2)` profile when zsh is enabled
 - ripgrep, fd, fzf, jq, lazygit, and Node.js LTS, each in its own versioned directory under `~/scoop/apps/<name>/current`
-- Optional MSYS2 zsh with zsh-autosuggestions and zsh-syntax-highlighting, launched on demand from the MSYS2 shell
+- Optional MSYS2 zsh with zsh-autosuggestions and zsh-syntax-highlighting, launched from the MSYS2 shell or its Windows Terminal profile
 - Optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors for zsh
 - Herdr's Windows beta installer, unless disabled in the local config
 - Claude, Codex, opencode, and Pi configuration files
@@ -83,7 +83,7 @@ The bootstrap script is idempotent and will:
 6. Install MSYS2 through Scoop (or WinGet in WinGet mode), its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1`.
 7. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
 8. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
-9. Merge the tracked Tokyo Night styling into the Windows Terminal settings, backing up the original file once, and never touching your profile list.
+9. Merge the tracked styling for the chosen color theme into the Windows Terminal settings, backing up the original file once, and add the managed `zsh (MSYS2)` profile when zsh is enabled.
 10. Apply only the Windows registry settings explicitly enabled in the config.
 
 Validate configuration without installing or changing anything:
@@ -111,7 +111,8 @@ prompt are picked up. Git Bash remains available independently.
 The PowerShell profile is intentionally minimal: it initializes the Starship
 prompt and nothing else, so native PowerShell stays the shell and behaves
 predictably. If you enabled `DOTFILES_INSTALL_ZSH`, launch the MSYS2 zsh shell
-from the MSYS2 entry in the Windows Start menu; zsh runs with the full Windows
+from the MSYS2 entry in the Windows Start menu or from the `zsh (MSYS2)` profile
+in Windows Terminal; zsh runs with the full Windows
 PATH, so tools installed for Windows (such as `herdr`, `pwsh`, and `nvim`) work
 inside it.
 
@@ -153,7 +154,8 @@ The most useful values are:
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
 - `DOTFILES_INSTALL_ZSH` - install MSYS2 and pacman zsh with the autocomplete plugins, launched on demand from the MSYS2 shell
 - `DOTFILES_INSTALL_OH_MY_POSH` - opt in to the Oh My Posh prompt in zsh (installable through the setup UI)
-- `DOTFILES_OH_MY_POSH_THEME` - choose `tokyo-night-storm` (default) or `rose-pine-moon`
+- `DOTFILES_COLOR_THEME` - choose `tokyo-night` (default) or `rose-pine-moon`; the choice is shared by Windows Terminal, Neovim, Herdr, zsh, and the prompt, and overrides `DOTFILES_OH_MY_POSH_THEME`
+- `DOTFILES_OH_MY_POSH_THEME` - the Oh My Posh theme (`tokyo-night-storm` or `rose-pine-moon`); derived from `DOTFILES_COLOR_THEME` when not set
 - `DOTFILES_WINDOWS_HOME`, `DOTFILES_LOCAL_APPDATA`, and `DOTFILES_APPDATA` - override detected Windows paths; Git Bash and Windows path forms are accepted
 - `DOTFILES_CLAUDE_CONFIG_DIR` and the other `*_CONFIG_DIR` overrides - point an application at a custom config location; when overriding Claude's directory, also update the hard-coded `%USERPROFILE%` path in `home/.claude/settings.json` so the status line keeps working
 - `DOTFILES_LINK_MODE` - use junctions for directories and hard links for files by default, or symbolic links for all links
@@ -213,12 +215,15 @@ PowerShell 5.1 and PowerShell 7) initializes the Starship prompt only; the same
 Starship configuration is sourced by Git Bash through the managed `~/.bashrc`
 hook and by zsh through `home/.zshrc`.
 
-Windows Terminal gets a tracked Tokyo Night styling: the profile defaults
-(color scheme, bar cursor, translucent acrylic, padding), the Tokyo Night Storm
-color scheme, and a matching theme are merged into your existing `settings.json`
-on every bootstrap and rebuild. Your profile list and unrelated settings are
-never touched, and the first merge backs the original file up as
-`settings.json.dotfiles-backup-*`. Uninstall restores that backup.
+Windows Terminal gets a tracked styling driven by `DOTFILES_COLOR_THEME`:
+the profile defaults (color scheme, bar cursor, translucent acrylic, padding),
+the matching color scheme, and a matching theme are merged into your existing
+`settings.json` on every bootstrap and rebuild. The merge never touches your
+other profiles, unrelated settings, or the default profile; the first merge
+backs the original file up as `settings.json.dotfiles-backup-*`, and uninstall
+restores that backup. When zsh is enabled, the merge also adds a managed
+`zsh (MSYS2)` profile (named, iconed, and pointed at the MSYS2 launcher) that
+uninstall removes again.
 
 If you opt into MSYS2 zsh, the setup installs zsh through pacman and clones
 `zsh-autosuggestions` and `zsh-syntax-highlighting` from their official
