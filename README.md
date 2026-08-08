@@ -1,6 +1,9 @@
 # dotfiles
 
-Windows developer setup managed from PowerShell with Scoop as the default
+A Windows version of [Kun's dotfiles](https://github.com/kunchenguid/dotfiles),
+which manages a Mac with nix-darwin and home-manager. This repo keeps the same
+goals - one repo, one command, and a fresh machine configured the same way every
+time - on Windows. Setup is managed from PowerShell with Scoop as the default
 package manager and WinGet available as an alternative, all driven by a single
 native PowerShell engine in `scripts/`. The repository keeps application
 configuration in `home/` and links it into the Windows locations expected by
@@ -11,6 +14,8 @@ each application. Git Bash remains a supported shell through the managed
 
 Running the bootstrap installs and configures:
 
+- The same feature areas as the original Mac setup, ported to Windows: a shared
+  prompt, a themed editor, a themed terminal, and shared agent configs
 - Git for Windows and Git Bash, installed through the default Scoop manager
 - Neovim with the Tokyo Night (default) or Rose Pine Moon color scheme and locked lazy.nvim plugins
 - PowerShell 7 (installed through WinGet when only Windows PowerShell is present), with a minimal profile that initializes the Starship prompt
