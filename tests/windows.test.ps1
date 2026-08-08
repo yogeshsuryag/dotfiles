@@ -459,6 +459,23 @@ Write-Output "result=$result action=$($plan[0].Action)"
     Assert-Test ((Get-DotfilesWindowsTerminalSourceFile $themeConfig) -eq $roseTerminalSource) 'Windows Terminal source selection follows the color theme'
     Pass-Test 'Windows Terminal styling follows the chosen color theme'
 
+    $zshProfileTarget = Join-Path $testRoot 'terminal/zsh-profile-settings.json'
+    Set-Content -LiteralPath $zshProfileTarget -Value $jsonWithComments -NoNewline
+    Update-DotfilesWindowsTerminalZshProfile -SettingsPath $zshProfileTarget -Msys2Root $msys2Root
+    $zshProfileMerged = ConvertFrom-Json (Get-Content -LiteralPath $zshProfileTarget -Raw)
+    Assert-Test (@($zshProfileMerged.profiles.list | Where-Object { $_.name -eq 'zsh (MSYS2)' }).Count -eq 1) 'zsh profile addition adds one MSYS2 zsh profile'
+    Assert-Test (@($zshProfileMerged.profiles.list | Where-Object { $_.name -eq 'zsh (MSYS2)' })[0].commandline -match 'msys2_shell\.cmd -defterm -here -no-start -use-full-path') 'zsh profile uses the MSYS2 defterm launcher'
+    Assert-Test (@($zshProfileMerged.profiles.list | Where-Object { $_.name -eq 'My Profile' }).Count -eq 1) 'zsh profile addition preserves existing profiles'
+    Update-DotfilesWindowsTerminalZshProfile -SettingsPath $zshProfileTarget -Msys2Root $msys2Root
+    $zshProfileMerged = ConvertFrom-Json (Get-Content -LiteralPath $zshProfileTarget -Raw)
+    Assert-Test (@($zshProfileMerged.profiles.list | Where-Object { $_.name -eq 'zsh (MSYS2)' }).Count -eq 1) 'zsh profile addition is idempotent'
+    Remove-DotfilesWindowsTerminalZshProfile $zshProfileTarget
+    $zshProfileMerged = ConvertFrom-Json (Get-Content -LiteralPath $zshProfileTarget -Raw)
+    Assert-Test (@($zshProfileMerged.profiles.list | Where-Object { $_.name -eq 'zsh (MSYS2)' }).Count -eq 0) 'zsh profile removal deletes the managed entry'
+    Assert-Test (@($zshProfileMerged.profiles.list | Where-Object { $_.name -eq 'My Profile' }).Count -eq 1) 'zsh profile removal preserves existing profiles'
+    Remove-DotfilesWindowsTerminalZshProfile $zshProfileTarget
+    Pass-Test 'Windows Terminal zsh profile is additive, idempotent, and removable'
+
     $herdrConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
     Initialize-DotfilesConfigDefaults $herdrConfig | Out-Null
     $herdrDir = Join-Path $testRoot 'herdr'

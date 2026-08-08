@@ -210,6 +210,8 @@ function Backup-DotfilesWindowsTerminalSettings {
     Write-Host "Backed up Windows Terminal settings to $backup"
 }
 
+$script:DotfilesWindowsTerminalZshProfileGuid = '{6D1AC648-2D78-4AAE-9EF1-11BFA5CB6B59}'
+
 function Get-DotfilesWindowsTerminalSourceFile {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
@@ -228,6 +230,90 @@ function Get-DotfilesWindowsTerminalSourceFile {
     return $null
 }
 
+function New-DotfilesWindowsTerminalZshProfile {
+    param([Parameter(Mandatory = $true)] [string] $Msys2Root)
+
+    $icon = Join-Path $Msys2Root 'msys2.ico'
+    $profile = [pscustomobject]@{
+        guid = $script:DotfilesWindowsTerminalZshProfileGuid
+        name = 'zsh (MSYS2)'
+        commandline = (Join-Path $Msys2Root 'msys2_shell.cmd') + ' -defterm -here -no-start -use-full-path'
+        startingDirectory = '%USERPROFILE%'
+    }
+    if (Test-Path -LiteralPath $icon -PathType Leaf) {
+        $profile | Add-Member -NotePropertyName icon -NotePropertyValue $icon
+    }
+    return $profile
+}
+
+function Update-DotfilesWindowsTerminalZshProfile {
+    param(
+        [Parameter(Mandatory = $true)] [string] $SettingsPath,
+        [Parameter(Mandatory = $true)] [string] $Msys2Root
+    )
+
+    if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) {
+        return
+    }
+    $target = ConvertFrom-Json (Remove-DotfilesJsonComments (Get-Content -LiteralPath $SettingsPath -Raw))
+    if ($null -eq $target -or $target -isnot [pscustomobject]) {
+        return
+    }
+    if (-not (Test-DotfilesNoteProperty $target 'profiles')) {
+        $target | Add-Member -NotePropertyName profiles -NotePropertyValue ([pscustomobject] @{})
+    }
+    $list = @()
+    if ((Test-DotfilesNoteProperty $target.profiles 'list') -and $null -ne $target.profiles.list) {
+        $list = @($target.profiles.list)
+    }
+    $profile = New-DotfilesWindowsTerminalZshProfile $Msys2Root
+    $existing = $null
+    foreach ($entry in $list) {
+        if ([string] $entry.guid -eq $script:DotfilesWindowsTerminalZshProfileGuid) {
+            $existing = $entry
+            break
+        }
+    }
+    if ($null -ne $existing) {
+        Copy-DotfilesNoteProperties $profile $existing | Out-Null
+        $json = ConvertTo-Json -InputObject $target -Depth 20
+        Set-DotfilesTextFile $SettingsPath $json
+        return
+    }
+    $list += $profile
+    Set-DotfilesNoteProperty $target.profiles 'list' $list
+    $json = ConvertTo-Json -InputObject $target -Depth 20
+    Set-DotfilesTextFile $SettingsPath $json
+    Write-Host 'Added the MSYS2 zsh profile to Windows Terminal'
+}
+
+function Remove-DotfilesWindowsTerminalZshProfile {
+    param([Parameter(Mandatory = $true)] [string] $SettingsPath)
+
+    if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) {
+        return
+    }
+    $target = ConvertFrom-Json (Remove-DotfilesJsonComments (Get-Content -LiteralPath $SettingsPath -Raw))
+    if ($null -eq $target -or $target -isnot [pscustomobject]) {
+        return
+    }
+    if (-not (Test-DotfilesNoteProperty $target 'profiles')) {
+        return
+    }
+    $list = @()
+    if ((Test-DotfilesNoteProperty $target.profiles 'list') -and $null -ne $target.profiles.list) {
+        $list = @($target.profiles.list)
+    }
+    $remaining = @($list | Where-Object { [string] $_.guid -ne $script:DotfilesWindowsTerminalZshProfileGuid })
+    if ($remaining.Count -eq $list.Count) {
+        return
+    }
+    Set-DotfilesNoteProperty $target.profiles 'list' $remaining
+    $json = ConvertTo-Json -InputObject $target -Depth 20
+    Set-DotfilesTextFile $SettingsPath $json
+    Write-Host 'Removed the MSYS2 zsh profile from Windows Terminal'
+}
+
 function Invoke-DotfilesWindowsTerminalSettings {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
@@ -240,6 +326,13 @@ function Invoke-DotfilesWindowsTerminalSettings {
     Write-Host '==> Merging Windows Terminal settings'
     Backup-DotfilesWindowsTerminalSettings $settingsPath
     Merge-DotfilesWindowsTerminalSettings -SourceFile $sourceFile -SettingsPath $settingsPath
+    if ([string] $Config.DOTFILES_INSTALL_ZSH -eq '1') {
+        $msys2Root = Get-DotfilesMsys2Root
+        if ($msys2Root) {
+            Write-Host '==> Adding the MSYS2 zsh profile to Windows Terminal'
+            Update-DotfilesWindowsTerminalZshProfile -SettingsPath $settingsPath -Msys2Root $msys2Root
+        }
+    }
 }
 
 function Restore-DotfilesWindowsTerminalSettings {
@@ -249,6 +342,7 @@ function Restore-DotfilesWindowsTerminalSettings {
     if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf)) {
         return
     }
+    Remove-DotfilesWindowsTerminalZshProfile $settingsPath
     $backup = Get-ChildItem -LiteralPath (Split-Path -Parent $settingsPath) -Filter 'settings.json.dotfiles-backup-*' -Force -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
