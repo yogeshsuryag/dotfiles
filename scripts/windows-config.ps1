@@ -17,6 +17,7 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_UPDATE_SCOOP',
     'DOTFILES_INSTALL_ZSH',
     'DOTFILES_INSTALL_OH_MY_POSH',
+    'DOTFILES_COLOR_THEME',
     'DOTFILES_OH_MY_POSH_THEME',
     'DOTFILES_INSTALL_HERDR',
     'DOTFILES_HERDR_INSTALL_URL',
@@ -151,7 +152,15 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_UPDATE_SCOOP' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_OH_MY_POSH' '0'
-    Set-DotfilesDefault $Config 'DOTFILES_OH_MY_POSH_THEME' 'tokyo-night-storm'
+    $seededColorTheme = $null
+    if (([string] $Config['DOTFILES_OH_MY_POSH_THEME']) -eq 'rose-pine-moon') {
+        $seededColorTheme = 'rose-pine-moon'
+    }
+    Set-DotfilesDefault $Config 'DOTFILES_COLOR_THEME' 'tokyo-night'
+    if ($null -ne $seededColorTheme) {
+        $Config['DOTFILES_COLOR_THEME'] = $seededColorTheme
+    }
+    $Config['DOTFILES_OH_MY_POSH_THEME'] = if ([string] $Config['DOTFILES_COLOR_THEME'] -eq 'rose-pine-moon') { 'rose-pine-moon' } else { 'tokyo-night-storm' }
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_HERDR' '1'
     Set-DotfilesDefault $Config 'DOTFILES_HERDR_INSTALL_URL' 'https://herdr.dev/install.ps1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_AGENT_CLIS' '0'
@@ -362,6 +371,9 @@ function Assert-DotfilesConfig {
 
     if (@('junction', 'symbolic') -notcontains [string] $Config.DOTFILES_LINK_MODE) {
         throw 'DOTFILES_LINK_MODE must be junction or symbolic.'
+    }
+    if (@('tokyo-night', 'rose-pine-moon') -notcontains [string] $Config.DOTFILES_COLOR_THEME) {
+        throw 'DOTFILES_COLOR_THEME must be tokyo-night or rose-pine-moon.'
     }
     if (@('tokyo-night-storm', 'rose-pine-moon') -notcontains [string] $Config.DOTFILES_OH_MY_POSH_THEME) {
         throw 'DOTFILES_OH_MY_POSH_THEME must be tokyo-night-storm or rose-pine-moon.'

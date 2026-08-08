@@ -127,7 +127,7 @@ function Get-DotfilesTuiPageIntro {
         0 { return 'Choose how packages are installed and which tools to include. Space toggles a choice; custom entries stay space-separated.' }
         1 { return 'These installers are optional. URLs are editable so you can review the source before continuing.' }
         2 { return 'Defaults are detected from Windows. Press Enter to edit any path.' }
-        3 { return 'Choose the prompt theme, link behavior, and which editor commands Git Bash should use.' }
+        3 { return 'Choose the color theme, link behavior, and which editor commands Git Bash should use.' }
         4 { return 'Registry changes are opt-in. Leave the master switch off to make this section a no-op.' }
         default { return 'Nothing is saved until you choose Save configuration. Go back to adjust any section.' }
     }
@@ -175,7 +175,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiAction $State 'next' 'Continue to shell and links' 'Open link behavior and Git Bash integration.'
         }
         3 {
-            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_OH_MY_POSH_THEME' 'Prompt theme' 'Choose between the Tokyo Night and Rose Pine prompt color schemes.'
+            Add-DotfilesTuiItem $State 'choice' 'DOTFILES_COLOR_THEME' 'Color theme' 'Choose the color theme shared by Windows Terminal, Neovim, Herdr, zsh, and the prompt.'
             Add-DotfilesTuiItem $State 'choice' 'DOTFILES_LINK_MODE' 'Link repository paths using' 'The default uses junctions for directories and hard links for files; symbolic links require the appropriate privilege.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_BACKUP_EXISTING' 'Back up existing files' 'Move real files and directories aside before creating managed links.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_BASH_HOOK' 'Install Git Bash integration' 'Add a managed block to .bashrc and .bash_profile for the repository and editor settings.'
@@ -235,10 +235,10 @@ function Get-DotfilesTuiChoiceLabel {
         [Parameter(Mandatory = $true)] [string] $Value
     )
 
+    if ($Key -eq 'DOTFILES_COLOR_THEME' -and $Value -eq 'tokyo-night') { return 'Tokyo Night (recommended)' }
+    if ($Key -eq 'DOTFILES_COLOR_THEME' -and $Value -eq 'rose-pine-moon') { return 'Rose Pine Moon' }
     if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'junction') { return 'Junctions and hard links (recommended)' }
     if ($Key -eq 'DOTFILES_LINK_MODE' -and $Value -eq 'symbolic') { return 'Symbolic links' }
-    if ($Key -eq 'DOTFILES_OH_MY_POSH_THEME' -and $Value -eq 'tokyo-night-storm') { return 'Tokyo Night (recommended)' }
-    if ($Key -eq 'DOTFILES_OH_MY_POSH_THEME' -and $Value -eq 'rose-pine-moon') { return 'Rose Pine Moon' }
     if ($Key -eq 'DOTFILES_PACKAGE_MANAGER' -and $Value -eq 'scoop') { return 'Scoop (recommended)' }
     if ($Key -eq 'DOTFILES_PACKAGE_MANAGER' -and $Value -eq 'winget') { return 'WinGet (alternative)' }
     return $Value
@@ -357,7 +357,7 @@ function Write-DotfilesTuiSummary {
     Write-Host ("  Installers: Herdr {0}, AI tools {1}, MSYS2 zsh {2}, Oh My Posh {3}" -f $herdrState, $agentState, $zshState, $ohMyPoshState)
     Write-Host ("  Main home: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_WINDOWS_HOME 68))
     Write-Host ("  Repository link: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_DOTFILES_LINK 68))
-    Write-Host ("  Prompt theme: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_OH_MY_POSH_THEME' $State.Config.DOTFILES_OH_MY_POSH_THEME))
+    Write-Host ("  Color theme: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_COLOR_THEME' $State.Config.DOTFILES_COLOR_THEME))
     Write-Host ("  Linking: {0}, backups {1}, Git Bash integration {2}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_LINK_MODE' $State.Config.DOTFILES_LINK_MODE), $backupState, $hookState)
     Write-Host ("  Windows settings: {0}" -f $settingsState)
     Write-Host ("  Save target: {0}" -f (Clip-DotfilesTuiValue $State.RequestedConfig 68))
@@ -419,8 +419,8 @@ function Toggle-DotfilesTuiItem {
         'package' { $State.PackageSelected[$Item.Key] = -not $State.PackageSelected[$Item.Key] }
         'bucket' { $State.BucketExtras = -not $State.BucketExtras }
         'choice' {
-            if ($Item.Key -eq 'DOTFILES_OH_MY_POSH_THEME') {
-                $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'tokyo-night-storm') { 'rose-pine-moon' } else { 'tokyo-night-storm' }
+            if ($Item.Key -eq 'DOTFILES_COLOR_THEME') {
+                $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'tokyo-night') { 'rose-pine-moon' } else { 'tokyo-night' }
             } elseif ($Item.Key -eq 'DOTFILES_PACKAGE_MANAGER') {
                 $State.Config[$Item.Key] = if ([string] $State.Config[$Item.Key] -eq 'winget') { 'scoop' } else { 'winget' }
             } else {
@@ -600,6 +600,7 @@ function Sync-DotfilesTuiToConfig {
     $State.Config.DOTFILES_WINGET_PACKAGES = ($wingetIds -join ' ')
     $State.Config.DOTFILES_SCOOP_BUCKETS = Get-DotfilesTuiSelectedBuckets $State
     $State.Config.DOTFILES_INSTALL_OH_MY_POSH = if ($State.PackageSelected['oh-my-posh']) { '1' } else { '0' }
+    $State.Config.DOTFILES_OH_MY_POSH_THEME = if ([string] $State.Config.DOTFILES_COLOR_THEME -eq 'rose-pine-moon') { 'rose-pine-moon' } else { 'tokyo-night-storm' }
 }
 
 function Invoke-DotfilesConfigWizard {

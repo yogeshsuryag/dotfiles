@@ -113,7 +113,17 @@ try {
     Assert-DotfilesConfig $config
     Assert-Test ([string] $config.DOTFILES_PACKAGE_MANAGER -eq 'scoop') 'Scoop is the default package manager'
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
-    Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the default prompt theme'
+    Assert-Test ([string] $config.DOTFILES_COLOR_THEME -eq 'tokyo-night') 'tokyo-night is the default color theme'
+    Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the derived prompt theme'
+    $seededConfig = @{ DOTFILES_OH_MY_POSH_THEME = 'rose-pine-moon' }
+    Initialize-DotfilesConfigDefaults $seededConfig | Out-Null
+    Assert-Test ([string] $seededConfig.DOTFILES_COLOR_THEME -eq 'rose-pine-moon') 'existing rose-pine-moon prompt choice seeds the color theme'
+    $invalidThemeConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $invalidThemeConfig | Out-Null
+    $invalidThemeConfig.DOTFILES_COLOR_THEME = 'gruvbox'
+    $invalidThemeThrew = $false
+    try { Assert-DotfilesConfig $invalidThemeConfig } catch { $invalidThemeThrew = $true }
+    Assert-Test $invalidThemeThrew 'Assert-DotfilesConfig rejects unknown color themes'
     $config.DOTFILES_EDITOR = 'C:\Program Files\Editor\editor.exe "$HOME"'
     $roundTripPath = Join-Path $testRoot 'roundtrip.env'
     Write-DotfilesEnvFile $config $roundTripPath
@@ -168,10 +178,17 @@ try {
     Assert-Test ($stateConfig.DOTFILES_PACKAGE_MANAGER -eq 'winget') 'PowerShell TUI toggles the package manager'
     $state.Page = 3
     Set-DotfilesTuiItems $state
-    $themeItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_OH_MY_POSH_THEME' })[0]
-    Assert-Test ($themeItem.Kind -eq 'choice') 'PowerShell TUI exposes the prompt theme choice'
+    $themeItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_COLOR_THEME' })[0]
+    Assert-Test ($themeItem.Kind -eq 'choice') 'PowerShell TUI exposes the color theme choice'
     Toggle-DotfilesTuiItem $state $themeItem
-    Assert-Test ($stateConfig.DOTFILES_OH_MY_POSH_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the prompt theme'
+    Assert-Test ($stateConfig.DOTFILES_COLOR_THEME -eq 'rose-pine-moon') 'PowerShell TUI toggles the color theme'
+    Assert-Test ((Get-DotfilesTuiChoiceLabel 'DOTFILES_COLOR_THEME' 'tokyo-night') -eq 'Tokyo Night (recommended)') 'PowerShell TUI labels Tokyo Night as the recommended color theme'
+    $stateConfig.DOTFILES_COLOR_THEME = 'tokyo-night'
+    Sync-DotfilesTuiToConfig $state
+    Assert-Test ([string] $stateConfig.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'PowerShell TUI derives the prompt theme from Tokyo Night'
+    $stateConfig.DOTFILES_COLOR_THEME = 'rose-pine-moon'
+    Sync-DotfilesTuiToConfig $state
+    Assert-Test ([string] $stateConfig.DOTFILES_OH_MY_POSH_THEME -eq 'rose-pine-moon') 'PowerShell TUI derives the prompt theme from Rose Pine Moon'
     Pass-Test 'PowerShell TUI state covers documented package choices'
 
     $fakeBin = Join-Path $testRoot 'fakebin'
