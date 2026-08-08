@@ -134,6 +134,7 @@ function Install-DotfilesZshStartup {
     $piAgentDir = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_PI_AGENT_DIR))
     $sourceLine = 'export DOTFILES_ROOT="' + (ConvertTo-BashDoubleQuoted $dotfilesLink) +
         '" DOTFILES_ZSH_ACTIVE="1" DOTFILES_INSTALL_ZSH="1" DOTFILES_INSTALL_OH_MY_POSH="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH)) +
+        '" DOTFILES_COLOR_THEME="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_COLOR_THEME)) +
         '" DOTFILES_OH_MY_POSH_THEME="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_OH_MY_POSH_THEME)) +
         '" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
         '" DOTFILES_VISUAL="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_VISUAL)) +

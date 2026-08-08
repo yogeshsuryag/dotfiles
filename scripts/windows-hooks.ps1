@@ -16,6 +16,7 @@ function Install-DotfilesBashHook {
     $piAgentDir = ConvertTo-NativePath $Config.DOTFILES_PI_AGENT_DIR
     $sourceLine = 'export DOTFILES_ROOT="' + (ConvertTo-BashDoubleQuoted $dotfilesLink) +
         '" DOTFILES_INSTALL_ZSH="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_ZSH)) +
+        '" DOTFILES_COLOR_THEME="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_COLOR_THEME)) +
         '" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
         '" DOTFILES_VISUAL="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_VISUAL)) +
         '" PI_CODING_AGENT_DIR="' + (ConvertTo-BashDoubleQuoted $piAgentDir) +

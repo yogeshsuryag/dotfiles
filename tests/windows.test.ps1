@@ -389,6 +389,12 @@ Write-Output "result=$result action=$($plan[0].Action)"
     Assert-Test (Test-Path -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/rose-pine-moon.omp.json') -PathType Leaf) 'Rose Pine Moon Oh My Posh theme is present'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/tokyo-night-storm.omp.json') -Raw) -match '"type": "node"') 'Tokyo Night theme includes the node segment'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/oh-my-posh/rose-pine-moon.omp.json') -Raw) -match '"type": "execution_time"') 'Rose Pine theme includes the execution time segment'
+    $colorschemeContent = Get-Content -LiteralPath (Join-Path $root 'home/.config/nvim/lua/plugins/colorscheme.lua') -Raw
+    Assert-Test ($colorschemeContent -match 'folke/tokyonight.nvim') 'Neovim declares the tokyonight color scheme'
+    Assert-Test ($colorschemeContent -match 'tokyonight-storm') 'Neovim selects the Tokyo Night Storm style'
+    Assert-Test ($colorschemeContent -match 'DOTFILES_COLOR_THEME') 'Neovim resolves the shared color theme choice'
+    Assert-Test ($colorschemeContent -match "theme ~= 'rose-pine-moon'") 'Neovim keeps rose-pine-moon as the alternative color scheme'
+    Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'home/.config/nvim/lazy-lock.json') -Raw) -match 'tokyonight.nvim') 'Neovim plugin lock pins tokyonight'
     Pass-Test 'Shell autocomplete and themed prompt configuration are validated'
 
     $trackedTerminal = Join-Path $root 'home/.config/windows-terminal/settings.json'
