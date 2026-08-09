@@ -11,6 +11,8 @@
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
+$script:DotfilesPsmuxBucketUrl = 'https://github.com/psmux/scoop-psmux'
+
 function Install-DotfilesScoop {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
@@ -46,7 +48,10 @@ function Get-DotfilesScoopBuckets {
 }
 
 function Configure-DotfilesScoop {
-    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+    param(
+        [Parameter(Mandatory = $true)] [hashtable] $Config,
+        [string[]] $AdditionalBuckets = @()
+    )
 
     Install-DotfilesScoop $Config
     $config = $Config
@@ -56,7 +61,9 @@ function Configure-DotfilesScoop {
     }
 
     $known = @(Get-DotfilesScoopBuckets)
-    foreach ($spec in ([string] $config.DOTFILES_SCOOP_BUCKETS -split '\s+' | Where-Object { $_ })) {
+    $bucketSpecs = @([string] $config.DOTFILES_SCOOP_BUCKETS -split '\s+' | Where-Object { $_ })
+    $bucketSpecs += @($AdditionalBuckets)
+    foreach ($spec in $bucketSpecs) {
         $parts = $spec -split '=', 2
         $name = $parts[0]
         if ($known -contains $name) {
@@ -88,12 +95,20 @@ function Install-DotfilesScoopPackages {
         if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1' -and $Packages -notcontains 'oh-my-posh') {
             $Packages += 'oh-my-posh'
         }
+        if ([string] $Config.DOTFILES_INSTALL_PSMUX -eq '1' -and $Packages -notcontains 'psmux') {
+            $Packages += 'psmux'
+        }
     }
     if ($Packages.Count -eq 0) {
         Write-Host '==> No Scoop packages declared, skipping package installation'
         return
     }
-    Configure-DotfilesScoop $Config
+    $additionalBuckets = if ($Packages -contains 'psmux') {
+        @("psmux=$script:DotfilesPsmuxBucketUrl")
+    } else {
+        @()
+    }
+    Configure-DotfilesScoop $Config -AdditionalBuckets $additionalBuckets
     Write-Host "==> Installing Scoop packages: $($Packages -join ' ')"
     Invoke-DotfilesCommand 'scoop' (@('install') + @($Packages))
 }

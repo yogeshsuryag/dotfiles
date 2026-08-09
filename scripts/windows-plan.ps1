@@ -18,6 +18,7 @@ $script:DotfilesPlanExeProbes = @{
     'nodejs' = 'node'
     'node' = 'node'
     'oh-my-posh' = 'oh-my-posh'
+    'psmux' = 'tmux'
 }
 
 $script:DotfilesPlanAgentClis = @(
@@ -122,6 +123,9 @@ function Get-DotfilesPackagePlan {
         $declared = @([string] $Config.DOTFILES_SCOOP_PACKAGES -split '\s+' | Where-Object { $_ })
         if ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1' -and $declared -notcontains 'oh-my-posh') {
             $declared += 'oh-my-posh'
+        }
+        if ([string] $Config.DOTFILES_INSTALL_PSMUX -eq '1' -and $declared -notcontains 'psmux') {
+            $declared += 'psmux'
         }
         $installed = @(Get-DotfilesScoopInstalled)
         foreach ($name in $declared) {

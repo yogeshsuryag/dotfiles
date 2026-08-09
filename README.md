@@ -22,6 +22,7 @@ Running the bootstrap installs and configures:
 - Starship as the shared prompt for PowerShell, Git Bash, and zsh
 - Windows Terminal styled with the chosen color theme (Tokyo Night by default, Rose Pine Moon as the alternative), merged into your existing settings, with PowerShell 7 as the default profile and a managed `zsh (MSYS2)` profile when zsh is enabled
 - ripgrep, fd, fzf, jq, lazygit, and Node.js LTS, each in its own versioned directory under `~/scoop/apps/<name>/current`
+- psmux, a tmux-compatible terminal multiplexer for Windows, from its dedicated Scoop bucket
 - Optional MSYS2 zsh with zsh-autosuggestions and zsh-syntax-highlighting, launched from the MSYS2 shell or its Windows Terminal profile
 - Optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors for zsh
 - Herdr's Windows beta installer, unless disabled in the local config
@@ -30,7 +31,8 @@ Running the bootstrap installs and configures:
 
 The setup wizard opens a keyboard-driven terminal UI instead of asking for raw
 environment variable names. It groups choices into tools, optional installers,
-file locations, shell/link behavior, and Windows settings. Use
+file locations, shell/link behavior, Kun Chen's agentic engineering setup, and
+Windows settings. Use
 `.\bootstrap.ps1 --configure` or `.\rebuild.ps1 --configure` to review all
 choices again; manual editing of `windows-config.env` is not required.
 
@@ -155,6 +157,7 @@ The most useful values are:
 - `DOTFILES_SCOOP_PACKAGES` - the Scoop package list (the default package manager)
 - `DOTFILES_SCOOP_BUCKETS` - normal Scoop buckets, separated by spaces
 - `DOTFILES_NERD_FONTS_BUCKET_URL` - the Nerd Fonts bucket source
+- `DOTFILES_INSTALL_PSMUX` - install psmux and its dedicated Scoop bucket for tmux-compatible terminal multiplexing on Windows
 - `DOTFILES_INSTALL_HERDR` - enable or disable the Herdr Windows installer
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
 - `DOTFILES_INSTALL_ZSH` - install MSYS2 and pacman zsh with the autocomplete plugins, launched on demand from the MSYS2 shell

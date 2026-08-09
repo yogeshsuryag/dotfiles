@@ -112,6 +112,7 @@ try {
     Initialize-DotfilesConfigDefaults $config | Out-Null
     Assert-DotfilesConfig $config
     Assert-Test ([string] $config.DOTFILES_PACKAGE_MANAGER -eq 'scoop') 'Scoop is the default package manager'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_PSMUX -eq '1') 'psmux is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
     Assert-Test ([string] $config.DOTFILES_COLOR_THEME -eq 'tokyo-night') 'tokyo-night is the default color theme'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the derived prompt theme'
@@ -165,6 +166,23 @@ try {
     Set-DotfilesTuiItems $state
     Assert-Test ($state.Items.Count -gt 10) 'PowerShell TUI package page contains the documented choices'
     Assert-Test ((Get-DotfilesTuiSelectedPackages $state) -eq $stateConfig.DOTFILES_SCOOP_PACKAGES) 'PowerShell TUI initializes package choices'
+    Assert-Test ((Get-DotfilesTuiPageTitle 4) -eq "Kun Chen's Agentic Engineering Setup") 'PowerShell TUI exposes the agentic engineering page'
+    Assert-Test ((Get-DotfilesTuiPageTitle 5) -eq 'Windows settings') 'PowerShell TUI keeps Windows settings after the agentic engineering page'
+    $state.Page = 4
+    Set-DotfilesTuiItems $state
+    $psmuxItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_PSMUX' })[0]
+    Assert-Test ($psmuxItem.Kind -eq 'toggle') 'PowerShell TUI exposes the psmux choice'
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_PSMUX -eq '1') 'PowerShell TUI initializes psmux as enabled'
+    Toggle-DotfilesTuiItem $state $psmuxItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_PSMUX -eq '0') 'PowerShell TUI toggles psmux off'
+    Toggle-DotfilesTuiItem $state $psmuxItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_PSMUX -eq '1') 'PowerShell TUI toggles psmux back on'
+    $state.Page = 5
+    Set-DotfilesTuiItems $state
+    $settingsItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_APPLY_WINDOWS_SETTINGS' })[0]
+    Assert-Test ($settingsItem.Kind -eq 'toggle') 'PowerShell TUI keeps the Windows settings page'
+    $state.Page = 0
+    Set-DotfilesTuiItems $state
     $state.PackageSelected.git = $false
     $state.PackageSelected['oh-my-posh'] = $true
     $state.CustomPackages = @('bat', 'delta')
@@ -205,6 +223,7 @@ try {
         $planConfig.DOTFILES_PACKAGE_MANAGER = 'scoop'
         $planConfig.DOTFILES_SCOOP_PACKAGES = 'fake-tool dotfiles-tool-that-does-not-exist git'
         $planConfig.DOTFILES_INSTALL_AGENT_CLIS = '0'
+        $planConfig.DOTFILES_INSTALL_PSMUX = '0'
         $plan = @(Get-DotfilesPackagePlan $planConfig)
         Assert-Test ($plan.Count -eq 3) 'package plan covers every declared package'
         $availableEntry = @($plan | Where-Object { $_.Name -eq 'fake-tool' })[0]
@@ -224,11 +243,64 @@ try {
         $env:PATH = $previousPath
     }
 
+    $psmuxPlanConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $psmuxPlanConfig | Out-Null
+    $psmuxPlanConfig.DOTFILES_PACKAGE_MANAGER = 'scoop'
+    $psmuxPlanConfig.DOTFILES_SCOOP_PACKAGES = ''
+    $psmuxPlanConfig.DOTFILES_INSTALL_AGENT_CLIS = '0'
+    $psmuxPlanConfig.DOTFILES_INSTALL_PSMUX = '1'
+    $psmuxPlan = @(Get-DotfilesPackagePlan $psmuxPlanConfig)
+    $psmuxEntry = @($psmuxPlan | Where-Object { $_.Package -eq 'psmux' })[0]
+    Assert-Test ($psmuxPlan.Count -eq 1) 'psmux adds one package-plan entry when enabled'
+    Assert-Test ($psmuxEntry.ManagerName -eq 'scoop' -and $psmuxEntry.Exe -eq 'tmux') 'psmux package-plan entry uses Scoop and the tmux executable'
+    $psmuxPlanConfig.DOTFILES_INSTALL_PSMUX = '0'
+    Assert-Test (@(Get-DotfilesPackagePlan $psmuxPlanConfig).Count -eq 0) 'psmux is absent from the package plan when disabled'
+    $psmuxPlanConfig.DOTFILES_INSTALL_PSMUX = '1'
+    $psmuxPlanConfig.DOTFILES_PACKAGE_MANAGER = 'winget'
+    $psmuxPlanConfig.DOTFILES_WINGET_PACKAGES = ''
+    Assert-Test (@(Get-DotfilesPackagePlan $psmuxPlanConfig).Count -eq 0) 'psmux remains Scoop-only when WinGet is selected'
+    Pass-Test 'psmux participates in the Scoop package plan'
+
+    $scoopFakeBin = Join-Path $testRoot 'fake-scoop-bin'
+    New-Item -ItemType Directory -Path $scoopFakeBin -Force | Out-Null
+    $scoopLog = Join-Path $testRoot 'fake-scoop.log'
+    $scoopCommandPath = Join-Path $scoopFakeBin 'scoop.cmd'
+    Set-Content -LiteralPath $scoopCommandPath -Encoding ASCII -Value @'
+@echo off
+if "%1"=="bucket" if "%2"=="list" (
+  echo Name Version
+  echo extras 1
+  exit /b 0
+)
+echo %*>>"%SCOOP_TEST_LOG%"
+exit /b 0
+'@
+    $previousPath = $env:PATH
+    $previousScoop = [Environment]::GetEnvironmentVariable('SCOOP', 'Process')
+    $previousScoopLog = [Environment]::GetEnvironmentVariable('SCOOP_TEST_LOG', 'Process')
+    $env:PATH = "$scoopFakeBin;$previousPath"
+    $env:SCOOP = Join-Path $testRoot 'fake-scoop-root'
+    $env:SCOOP_TEST_LOG = $scoopLog
+    try {
+        $scoopInstallConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+        Initialize-DotfilesConfigDefaults $scoopInstallConfig | Out-Null
+        Install-DotfilesScoopPackages $scoopInstallConfig -Packages @('psmux')
+        $scoopCommands = @(Get-Content -LiteralPath $scoopLog)
+        Assert-Test ($scoopCommands -contains "bucket add psmux $script:DotfilesPsmuxBucketUrl") 'psmux installation adds the dedicated Scoop bucket'
+        Assert-Test ($scoopCommands -contains 'install psmux') 'psmux installation invokes Scoop with the psmux package'
+        Pass-Test 'psmux Scoop installation uses the requested bucket and package commands'
+    } finally {
+        $env:PATH = $previousPath
+        if ($null -eq $previousScoop) { Remove-Item Env:SCOOP -ErrorAction SilentlyContinue } else { $env:SCOOP = $previousScoop }
+        if ($null -eq $previousScoopLog) { Remove-Item Env:SCOOP_TEST_LOG -ErrorAction SilentlyContinue } else { $env:SCOOP_TEST_LOG = $previousScoopLog }
+    }
+
     $agentConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
     Initialize-DotfilesConfigDefaults $agentConfig | Out-Null
     $agentConfig.DOTFILES_PACKAGE_MANAGER = 'scoop'
     $agentConfig.DOTFILES_SCOOP_PACKAGES = ''
     $agentConfig.DOTFILES_INSTALL_AGENT_CLIS = '1'
+    $agentConfig.DOTFILES_INSTALL_PSMUX = '0'
     $agentPlan = @(Get-DotfilesPackagePlan $agentConfig)
     Assert-Test ($agentPlan.Count -eq 4) 'agent CLIs are added to the plan when enabled'
     Assert-Test ((@($agentPlan | Where-Object { $_.ManagerName -eq 'npm' }).Count) -eq 4) 'agent CLI plan entries use the npm manager'
@@ -244,6 +316,7 @@ Initialize-DotfilesConfigDefaults $config | Out-Null
 $config.DOTFILES_PACKAGE_MANAGER = 'scoop'
 $config.DOTFILES_SCOOP_PACKAGES = 'dotfiles-tool-that-does-not-exist'
 $config.DOTFILES_INSTALL_AGENT_CLIS = '0'
+$config.DOTFILES_INSTALL_PSMUX = '0'
 $plan = @(Get-DotfilesPackagePlan $config)
 $result = Invoke-DotfilesPackagePlanReview $plan
 Write-Output "result=$result action=$($plan[0].Action)"

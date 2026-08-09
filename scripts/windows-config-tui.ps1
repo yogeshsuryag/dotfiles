@@ -115,7 +115,8 @@ function Get-DotfilesTuiPageTitle {
         1 { return 'Additional installers' }
         2 { return 'File locations' }
         3 { return 'Shell and links' }
-        4 { return 'Windows settings' }
+        4 { return "Kun Chen's Agentic Engineering Setup" }
+        5 { return 'Windows settings' }
         default { return 'Review your choices' }
     }
 }
@@ -128,7 +129,8 @@ function Get-DotfilesTuiPageIntro {
         1 { return 'These installers are optional. URLs are editable so you can review the source before continuing.' }
         2 { return 'Defaults are detected from Windows. Press Enter to edit any path.' }
         3 { return 'Choose the color theme, link behavior, and which editor commands Git Bash should use.' }
-        4 { return 'Registry changes are opt-in. Leave the master switch off to make this section a no-op.' }
+        4 { return "Choose the tools used in Kun Chen's agentic engineering workflow. These choices currently install through Scoop." }
+        5 { return 'Registry changes are opt-in. Leave the master switch off to make this section a no-op.' }
         default { return 'Nothing is saved until you choose Save configuration. Go back to adjust any section.' }
     }
 }
@@ -182,9 +184,14 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiItem $State 'text' 'DOTFILES_EDITOR' 'Editor command' 'Command used when shell tools open an editor, such as nvim.'
             Add-DotfilesTuiItem $State 'text' 'DOTFILES_VISUAL' 'Visual editor command' 'Fallback visual editor command used by programs that distinguish it from the editor.'
             Add-DotfilesTuiAction $State 'back' 'Back to file locations' 'Return to the previous section without losing these choices.'
-            Add-DotfilesTuiAction $State 'next' 'Continue to Windows settings' 'Open the optional registry-backed settings.'
+            Add-DotfilesTuiAction $State 'next' "Continue to Kun Chen's Agentic Engineering Setup" 'Choose the tools used in the agentic engineering workflow.'
         }
         4 {
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_PSMUX' 'Install psmux (tmux for Windows)' 'Add the psmux Scoop bucket from https://github.com/psmux/scoop-psmux and install psmux, which provides tmux-compatible commands on Windows. Only applies in Scoop mode.'
+            Add-DotfilesTuiAction $State 'back' 'Back to shell and links' 'Return to the previous section without losing these choices.'
+            Add-DotfilesTuiAction $State 'next' 'Continue to Windows settings' 'Open the optional registry-backed settings.'
+        }
+        5 {
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_APPLY_WINDOWS_SETTINGS' 'Apply Windows settings' 'Master switch. Keep this off to avoid registry changes during bootstrap or rebuild.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_DARK_MODE' 'Use dark mode' 'Use dark mode for Windows and supported applications.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_SHOW_FILE_EXTENSIONS' 'Show file extensions' 'Show filename extensions in File Explorer.'
@@ -195,7 +202,7 @@ function Set-DotfilesTuiItems {
             Add-DotfilesTuiItem $State 'number' 'DOTFILES_KEYBOARD_DELAY' 'Keyboard repeat delay' 'Delay value from 0 to 3. Use Left and Right to adjust it.'
             Add-DotfilesTuiItem $State 'number' 'DOTFILES_KEYBOARD_SPEED' 'Keyboard repeat speed' 'Speed value from 0 to 31. Use Left and Right to adjust it.'
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_RESTART_EXPLORER' 'Restart Explorer after changes' 'Restart Explorer after Explorer or taskbar settings are applied.'
-            Add-DotfilesTuiAction $State 'back' 'Back to shell and links' 'Return to the previous section without losing these choices.'
+            Add-DotfilesTuiAction $State 'back' "Back to Kun Chen's Agentic Engineering Setup" 'Return to the previous section without losing these choices.'
             Add-DotfilesTuiAction $State 'next' 'Review all choices' 'Show a concise summary before anything is written.'
         }
     }
@@ -288,7 +295,7 @@ function Write-DotfilesTuiPage {
 
     Clear-Host
     Write-Host 'Windows dotfiles setup' -ForegroundColor Cyan
-    Write-Host ("Step {0} of 5: {1}" -f ($State.Page + 1), (Get-DotfilesTuiPageTitle $State.Page))
+    Write-Host ("Step {0} of 6: {1}" -f ($State.Page + 1), (Get-DotfilesTuiPageTitle $State.Page))
     Write-Host (Get-DotfilesTuiPageIntro $State.Page)
     Write-Host ''
 
@@ -343,6 +350,7 @@ function Write-DotfilesTuiSummary {
     $ohMyPoshState = if ([string] $State.Config.DOTFILES_INSTALL_OH_MY_POSH -eq '1') { 'ON' } else { 'OFF' }
     $backupState = if ([string] $State.Config.DOTFILES_BACKUP_EXISTING -eq '1') { 'ON' } else { 'OFF' }
     $hookState = if ([string] $State.Config.DOTFILES_INSTALL_BASH_HOOK -eq '1') { 'ON' } else { 'OFF' }
+    $psmuxState = if ([string] $State.Config.DOTFILES_INSTALL_PSMUX -eq '1') { 'ON' } else { 'OFF' }
     $settingsState = if ([string] $State.Config.DOTFILES_APPLY_WINDOWS_SETTINGS -eq '1') { 'ON' } else { 'OFF' }
     $packageList = if ($packages) { $packages } else { 'none' }
     $bucketList = if ($buckets) { $buckets } else { 'none' }
@@ -359,6 +367,7 @@ function Write-DotfilesTuiSummary {
     Write-Host ("  Repository link: {0}" -f (Clip-DotfilesTuiValue $State.Config.DOTFILES_DOTFILES_LINK 68))
     Write-Host ("  Color theme: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_COLOR_THEME' $State.Config.DOTFILES_COLOR_THEME))
     Write-Host ("  Linking: {0}, backups {1}, Git Bash integration {2}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_LINK_MODE' $State.Config.DOTFILES_LINK_MODE), $backupState, $hookState)
+    Write-Host ("  Agentic engineering: psmux (tmux for Windows) {0}" -f $psmuxState)
     Write-Host ("  Windows settings: {0}" -f $settingsState)
     Write-Host ("  Save target: {0}" -f (Clip-DotfilesTuiValue $State.RequestedConfig 68))
     Write-Host ''
@@ -513,7 +522,7 @@ function Invoke-DotfilesTuiPages {
 
     $State.Page = 0
     $State.Selected = 0
-    while ($State.Page -lt 5) {
+    while ($State.Page -lt 6) {
         Set-DotfilesTuiItems $State
         Write-DotfilesTuiPage $State
         $key = Read-DotfilesTuiKey

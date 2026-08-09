@@ -15,6 +15,7 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_NERD_FONTS_BUCKET_URL',
     'DOTFILES_SCOOP_PACKAGES',
     'DOTFILES_UPDATE_SCOOP',
+    'DOTFILES_INSTALL_PSMUX',
     'DOTFILES_INSTALL_ZSH',
     'DOTFILES_INSTALL_OH_MY_POSH',
     'DOTFILES_COLOR_THEME',
@@ -150,6 +151,7 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_NERD_FONTS_BUCKET_URL' 'https://github.com/matthewjberger/scoop-nerd-fonts'
     Set-DotfilesDefault $Config 'DOTFILES_SCOOP_PACKAGES' 'git neovim starship ripgrep fd fzf jq lazygit nodejs'
     Set-DotfilesDefault $Config 'DOTFILES_UPDATE_SCOOP' '0'
+    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_PSMUX' '1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '0'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_OH_MY_POSH' '0'
     $seededColorTheme = $null
@@ -383,7 +385,7 @@ function Assert-DotfilesConfig {
     }
 
     $booleanKeys = @(
-        'DOTFILES_INSTALL_SCOOP', 'DOTFILES_UPDATE_SCOOP', 'DOTFILES_INSTALL_ZSH', 'DOTFILES_INSTALL_OH_MY_POSH', 'DOTFILES_INSTALL_HERDR',
+        'DOTFILES_INSTALL_SCOOP', 'DOTFILES_UPDATE_SCOOP', 'DOTFILES_INSTALL_PSMUX', 'DOTFILES_INSTALL_ZSH', 'DOTFILES_INSTALL_OH_MY_POSH', 'DOTFILES_INSTALL_HERDR',
         'DOTFILES_INSTALL_AGENT_CLIS', 'DOTFILES_BACKUP_EXISTING', 'DOTFILES_INSTALL_BASH_HOOK',
         'DOTFILES_APPLY_WINDOWS_SETTINGS', 'DOTFILES_DARK_MODE', 'DOTFILES_SHOW_FILE_EXTENSIONS',
         'DOTFILES_SHOW_HIDDEN_FILES', 'DOTFILES_HIDE_DESKTOP_ICONS', 'DOTFILES_TASKBAR_AUTO_HIDE',
