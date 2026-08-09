@@ -23,6 +23,7 @@ Running the bootstrap installs and configures:
 - Windows Terminal styled with the chosen color theme (Tokyo Night by default, Rose Pine Moon as the alternative), merged into your existing settings, with PowerShell 7 as the default profile and a managed `zsh (MSYS2)` profile when zsh is enabled
 - ripgrep, fd, fzf, jq, lazygit, and Node.js LTS, each in its own versioned directory under `~/scoop/apps/<name>/current`
 - psmux, a tmux-compatible terminal multiplexer for Windows, from its dedicated Scoop bucket
+- GitHub AXI, Chrome DevTools AXI, and Lavish AXI skills installed globally for detected agents
 - Optional MSYS2 zsh with zsh-autosuggestions and zsh-syntax-highlighting, launched from the MSYS2 shell or its Windows Terminal profile
 - Optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors for zsh
 - Herdr's Windows beta installer, unless disabled in the local config
@@ -86,12 +87,13 @@ The bootstrap script is idempotent and will:
 2. Install PowerShell 7 through WinGet when only Windows PowerShell is present, then continue under `pwsh`.
 3. Check whether every declared tool is already available - on PATH, in Scoop (`scoop list`), or in WinGet (`winget list`) - and show a review page with the recommended action per tool (Skip for existing tools, Install for missing ones). Space changes a tool's action (Install/Skip/Replace), Enter continues, Esc cancels without installing anything. Non-interactive runs skip the page and apply the recommendations automatically.
 4. Install only the approved packages through the default Scoop manager, each into its own versioned directory under `~/scoop/apps/<name>/current` with a shim on PATH; WinGet mode instead installs user-scope zip packages and extracts the official portable archives for Git, Node.js, Neovim, and Starship into `%LOCALAPPDATA%\Programs`.
-5. Install Herdr's Windows beta through its official installer when enabled.
-6. Install MSYS2 through Scoop (or WinGet in WinGet mode), its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1`.
-7. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
-8. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
-9. Merge the tracked styling for the chosen color theme into the Windows Terminal settings, backing up the original file once, and add the managed `zsh (MSYS2)` profile when zsh is enabled.
-10. Apply only the Windows registry settings explicitly enabled in the config.
+5. Install the selected global agent skills with noninteractive `npx --yes skills add ... -g -y` commands, including GitHub AXI, Chrome DevTools AXI, and Lavish AXI when enabled.
+6. Install Herdr's Windows beta through its official installer when enabled.
+7. Install MSYS2 through Scoop (or WinGet in WinGet mode), its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1`.
+8. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
+9. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
+10. Merge the tracked styling for the chosen color theme into the Windows Terminal settings, backing up the original file once, and add the managed `zsh (MSYS2)` profile when zsh is enabled.
+11. Apply only the Windows registry settings explicitly enabled in the config.
 
 Validate configuration without installing or changing anything:
 
@@ -158,6 +160,9 @@ The most useful values are:
 - `DOTFILES_SCOOP_BUCKETS` - normal Scoop buckets, separated by spaces
 - `DOTFILES_NERD_FONTS_BUCKET_URL` - the Nerd Fonts bucket source
 - `DOTFILES_INSTALL_PSMUX` - install psmux and its dedicated Scoop bucket for tmux-compatible terminal multiplexing on Windows
+- `DOTFILES_INSTALL_GH_AXI` - install the global `gh-axi` skill from `kunchenguid/gh-axi`
+- `DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI` - install the global `chrome-devtools-axi` skill from `kunchenguid/chrome-devtools-axi`
+- `DOTFILES_INSTALL_LAVISH_AXI` - install the global `lavish` skill from `kunchenguid/lavish-axi`
 - `DOTFILES_INSTALL_HERDR` - enable or disable the Herdr Windows installer
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
 - `DOTFILES_INSTALL_ZSH` - install MSYS2 and pacman zsh with the autocomplete plugins, launched on demand from the MSYS2 shell

@@ -129,7 +129,7 @@ function Get-DotfilesTuiPageIntro {
         1 { return 'These installers are optional. URLs are editable so you can review the source before continuing.' }
         2 { return 'Defaults are detected from Windows. Press Enter to edit any path.' }
         3 { return 'Choose the color theme, link behavior, and which editor commands Git Bash should use.' }
-        4 { return "Choose the tools used in Kun Chen's agentic engineering workflow. These choices currently install through Scoop." }
+        4 { return "Choose the tools and skills used in Kun Chen's agentic engineering workflow. Tools use Scoop; skills use npx globally." }
         5 { return 'Registry changes are opt-in. Leave the master switch off to make this section a no-op.' }
         default { return 'Nothing is saved until you choose Save configuration. Go back to adjust any section.' }
     }
@@ -188,6 +188,9 @@ function Set-DotfilesTuiItems {
         }
         4 {
             Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_PSMUX' 'Install psmux (tmux for Windows)' 'Add the psmux Scoop bucket from https://github.com/psmux/scoop-psmux and install psmux, which provides tmux-compatible commands on Windows. Only applies in Scoop mode.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_GH_AXI' 'Install GitHub AXI' 'Install kunchenguid/gh-axi skill gh-axi globally for detected agents with npx.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI' 'Install Chrome DevTools AXI' 'Install kunchenguid/chrome-devtools-axi skill chrome-devtools-axi globally for detected agents with npx.'
+            Add-DotfilesTuiItem $State 'toggle' 'DOTFILES_INSTALL_LAVISH_AXI' 'Install Lavish AXI' 'Install kunchenguid/lavish-axi skill lavish globally for detected agents with npx.'
             Add-DotfilesTuiAction $State 'back' 'Back to shell and links' 'Return to the previous section without losing these choices.'
             Add-DotfilesTuiAction $State 'next' 'Continue to Windows settings' 'Open the optional registry-backed settings.'
         }
@@ -351,6 +354,9 @@ function Write-DotfilesTuiSummary {
     $backupState = if ([string] $State.Config.DOTFILES_BACKUP_EXISTING -eq '1') { 'ON' } else { 'OFF' }
     $hookState = if ([string] $State.Config.DOTFILES_INSTALL_BASH_HOOK -eq '1') { 'ON' } else { 'OFF' }
     $psmuxState = if ([string] $State.Config.DOTFILES_INSTALL_PSMUX -eq '1') { 'ON' } else { 'OFF' }
+    $githubAxiState = if ([string] $State.Config.DOTFILES_INSTALL_GH_AXI -eq '1') { 'ON' } else { 'OFF' }
+    $chromeDevtoolsAxiState = if ([string] $State.Config.DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI -eq '1') { 'ON' } else { 'OFF' }
+    $lavishAxiState = if ([string] $State.Config.DOTFILES_INSTALL_LAVISH_AXI -eq '1') { 'ON' } else { 'OFF' }
     $settingsState = if ([string] $State.Config.DOTFILES_APPLY_WINDOWS_SETTINGS -eq '1') { 'ON' } else { 'OFF' }
     $packageList = if ($packages) { $packages } else { 'none' }
     $bucketList = if ($buckets) { $buckets } else { 'none' }
@@ -368,6 +374,7 @@ function Write-DotfilesTuiSummary {
     Write-Host ("  Color theme: {0}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_COLOR_THEME' $State.Config.DOTFILES_COLOR_THEME))
     Write-Host ("  Linking: {0}, backups {1}, Git Bash integration {2}" -f (Get-DotfilesTuiChoiceLabel 'DOTFILES_LINK_MODE' $State.Config.DOTFILES_LINK_MODE), $backupState, $hookState)
     Write-Host ("  Agentic engineering: psmux (tmux for Windows) {0}" -f $psmuxState)
+    Write-Host ("  Agentic skills: GitHub AXI {0}, Chrome DevTools AXI {1}, Lavish AXI {2}" -f $githubAxiState, $chromeDevtoolsAxiState, $lavishAxiState)
     Write-Host ("  Windows settings: {0}" -f $settingsState)
     Write-Host ("  Save target: {0}" -f (Clip-DotfilesTuiValue $State.RequestedConfig 68))
     Write-Host ''

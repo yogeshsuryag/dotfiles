@@ -113,6 +113,9 @@ try {
     Assert-DotfilesConfig $config
     Assert-Test ([string] $config.DOTFILES_PACKAGE_MANAGER -eq 'scoop') 'Scoop is the default package manager'
     Assert-Test ([string] $config.DOTFILES_INSTALL_PSMUX -eq '1') 'psmux is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_GH_AXI -eq '1') 'GitHub AXI is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI -eq '1') 'Chrome DevTools AXI is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_LAVISH_AXI -eq '1') 'Lavish AXI is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
     Assert-Test ([string] $config.DOTFILES_COLOR_THEME -eq 'tokyo-night') 'tokyo-night is the default color theme'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the derived prompt theme'
@@ -177,6 +180,15 @@ try {
     Assert-Test ($stateConfig.DOTFILES_INSTALL_PSMUX -eq '0') 'PowerShell TUI toggles psmux off'
     Toggle-DotfilesTuiItem $state $psmuxItem
     Assert-Test ($stateConfig.DOTFILES_INSTALL_PSMUX -eq '1') 'PowerShell TUI toggles psmux back on'
+    foreach ($skillKey in @('DOTFILES_INSTALL_GH_AXI', 'DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI', 'DOTFILES_INSTALL_LAVISH_AXI')) {
+        $skillItem = @($state.Items | Where-Object { $_.Key -eq $skillKey })[0]
+        Assert-Test ($skillItem.Kind -eq 'toggle') "PowerShell TUI exposes $skillKey"
+        Assert-Test ($stateConfig[$skillKey] -eq '1') "PowerShell TUI initializes $skillKey as enabled"
+        Toggle-DotfilesTuiItem $state $skillItem
+        Assert-Test ($stateConfig[$skillKey] -eq '0') "PowerShell TUI toggles $skillKey off"
+        Toggle-DotfilesTuiItem $state $skillItem
+        Assert-Test ($stateConfig[$skillKey] -eq '1') "PowerShell TUI toggles $skillKey back on"
+    }
     $state.Page = 5
     Set-DotfilesTuiItems $state
     $settingsItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_APPLY_WINDOWS_SETTINGS' })[0]
@@ -241,6 +253,39 @@ try {
         Pass-Test 'Package plan detects existing tools and recommends the best choice'
     } finally {
         $env:PATH = $previousPath
+    }
+
+    $npxFakeBin = Join-Path $testRoot 'fake-npx-bin'
+    New-Item -ItemType Directory -Path $npxFakeBin -Force | Out-Null
+    $npxLog = Join-Path $testRoot 'fake-npx.log'
+    $npxCommandPath = Join-Path $npxFakeBin 'npx.cmd'
+    Set-Content -LiteralPath $npxCommandPath -Encoding ASCII -Value @'
+@echo off
+echo %*>>"%NPX_TEST_LOG%"
+exit /b 0
+'@
+    $previousPath = $env:PATH
+    $previousNpxLog = [Environment]::GetEnvironmentVariable('NPX_TEST_LOG', 'Process')
+    $env:PATH = "$npxFakeBin;$previousPath"
+    $env:NPX_TEST_LOG = $npxLog
+    try {
+        $skillInstallConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+        Initialize-DotfilesConfigDefaults $skillInstallConfig | Out-Null
+        Install-DotfilesAgenticSkills $skillInstallConfig
+        $npxCommands = @(Get-Content -LiteralPath $npxLog)
+        Assert-Test ($npxCommands.Count -eq 3) 'agentic skill installation invokes npx once per selected skill'
+        Assert-Test ($npxCommands -contains '--yes skills add kunchenguid/gh-axi --skill gh-axi -g -y') 'GitHub AXI uses the requested noninteractive npx arguments'
+        Assert-Test ($npxCommands -contains '--yes skills add kunchenguid/chrome-devtools-axi --skill chrome-devtools-axi -g -y') 'Chrome DevTools AXI uses the requested noninteractive npx arguments'
+        Assert-Test ($npxCommands -contains '--yes skills add kunchenguid/lavish-axi --skill lavish -g -y') 'Lavish AXI uses global noninteractive npx installation'
+        $skillInstallConfig.DOTFILES_INSTALL_GH_AXI = '0'
+        $skillInstallConfig.DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI = '0'
+        $skillInstallConfig.DOTFILES_INSTALL_LAVISH_AXI = '0'
+        Install-DotfilesAgenticSkills $skillInstallConfig
+        Assert-Test (@(Get-Content -LiteralPath $npxLog).Count -eq 3) 'disabled agentic skills do not invoke npx'
+        Pass-Test 'Agentic skills use the verified noninteractive global npx commands'
+    } finally {
+        $env:PATH = $previousPath
+        if ($null -eq $previousNpxLog) { Remove-Item Env:NPX_TEST_LOG -ErrorAction SilentlyContinue } else { $env:NPX_TEST_LOG = $previousNpxLog }
     }
 
     $psmuxPlanConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
