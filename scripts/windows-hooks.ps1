@@ -13,9 +13,15 @@ function Install-DotfilesBashHook {
     if ([string] $Config.DOTFILES_INSTALL_BASH_HOOK -ne '1') { return }
     $userHomePath = ConvertTo-NativePath $Config.DOTFILES_WINDOWS_HOME
     $dotfilesLink = ConvertTo-GitBashPath (ConvertTo-NativePath $Config.DOTFILES_DOTFILES_LINK)
+    $firstmateDir = ConvertTo-GitBashPath (ConvertTo-NativePath $Config.DOTFILES_FIRSTMATE_DIR)
+    $firstmateLauncher = ConvertTo-GitBashPath (Join-Path $userHomePath 'bin/firstmate')
     $piAgentDir = ConvertTo-NativePath $Config.DOTFILES_PI_AGENT_DIR
     $sourceLine = 'export DOTFILES_ROOT="' + (ConvertTo-BashDoubleQuoted $dotfilesLink) +
         '" DOTFILES_INSTALL_ZSH="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_ZSH)) +
+        '" DOTFILES_INSTALL_FIRSTMATE="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_FIRSTMATE)) +
+        '" DOTFILES_FIRSTMATE_DIR="' + (ConvertTo-BashDoubleQuoted $firstmateDir) +
+        '" DOTFILES_FIRSTMATE_HARNESS="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_FIRSTMATE_HARNESS)) +
+        '" DOTFILES_FIRSTMATE_LAUNCHER="' + (ConvertTo-BashDoubleQuoted $firstmateLauncher) +
         '" DOTFILES_COLOR_THEME="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_COLOR_THEME)) +
         '" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
         '" DOTFILES_VISUAL="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_VISUAL)) +

@@ -36,6 +36,7 @@ try {
     }
 
     Install-DotfilesZsh $config
+    Install-DotfilesFirstmate $config
     Invoke-DotfilesLinks $root $config
     Install-DotfilesBashHook $root $config
     Write-DotfilesHerdrConfig $root $config

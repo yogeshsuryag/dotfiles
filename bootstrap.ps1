@@ -57,6 +57,7 @@ try {
     Install-DotfilesTreehouse $config
     Install-DotfilesHerdr $config
     Install-DotfilesZsh $config
+    Install-DotfilesFirstmate $config
 
     Write-Host '==> Installing Git Bash configuration hook'
     Invoke-DotfilesLinks $root $config

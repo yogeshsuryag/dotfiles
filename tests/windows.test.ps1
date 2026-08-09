@@ -119,7 +119,10 @@ try {
     Assert-Test ([string] $config.DOTFILES_INSTALL_NO_MISTAKES -eq '1') 'no-mistakes is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_GNHF -eq '1') 'gnhf is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_TREEHOUSE -eq '1') 'Treehouse is enabled by default'
-    Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_FIRSTMATE -eq '0') 'Firstmate remains opt-in by default'
+    Assert-Test ([string] $config.DOTFILES_FIRSTMATE_HARNESS -eq 'opencode') 'Firstmate defaults to the opencode harness'
+    Assert-Test ([string] $config.DOTFILES_FIRSTMATE_DIR -match '\.firstmate$') 'Firstmate defaults to the user profile checkout'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '1') 'MSYS2 zsh is enabled by default'
     Assert-Test ([string] $config.DOTFILES_COLOR_THEME -eq 'tokyo-night') 'tokyo-night is the default color theme'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the derived prompt theme'
     $seededConfig = @{ DOTFILES_OH_MY_POSH_THEME = 'rose-pine-moon' }
@@ -230,6 +233,17 @@ try {
     Assert-Test ($stateConfig.DOTFILES_INSTALL_TREEHOUSE -eq '0') 'PowerShell TUI toggles Treehouse off'
     Toggle-DotfilesTuiItem $state $treehouseItem
     Assert-Test ($stateConfig.DOTFILES_INSTALL_TREEHOUSE -eq '1') 'PowerShell TUI toggles Treehouse back on'
+    $firstmateItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_FIRSTMATE' })[0]
+    $firstmateDirItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_FIRSTMATE_DIR' })[0]
+    $firstmateHarnessItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_FIRSTMATE_HARNESS' })[0]
+    Assert-Test ($firstmateItem.Kind -eq 'toggle') 'PowerShell TUI exposes the Firstmate choice'
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_FIRSTMATE -eq '0') 'PowerShell TUI keeps Firstmate opt-in'
+    Assert-Test ($firstmateDirItem.Kind -eq 'text' -and $firstmateHarnessItem.Kind -eq 'text') 'PowerShell TUI exposes Firstmate paths and harness'
+    Assert-Test ($firstmateHarnessItem.Description.Contains('opencode')) 'PowerShell TUI documents the Firstmate default harness'
+    Toggle-DotfilesTuiItem $state $firstmateItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_FIRSTMATE -eq '1') 'PowerShell TUI toggles Firstmate on'
+    Toggle-DotfilesTuiItem $state $firstmateItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_FIRSTMATE -eq '0') 'PowerShell TUI toggles Firstmate back off'
     $state.Page = 5
     Set-DotfilesTuiItems $state
     $settingsItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_APPLY_WINDOWS_SETTINGS' })[0]
@@ -577,6 +591,7 @@ Write-Output "result=$result action=$($plan[0].Action)"
     $hookProfile = Join-Path $hookHome '.bashrc'
     $hookContent = Get-Content -LiteralPath $hookProfile -Raw
     Assert-Test ((@($hookContent -split "`r?`n" | Where-Object { $_ -eq '# >>> dotfiles managed Git Bash hook >>>' }).Count) -eq 1) 'PowerShell Git Bash hook installation is idempotent'
+    Assert-Test ($hookContent -match 'DOTFILES_FIRSTMATE_DIR=') 'PowerShell Git Bash hook exports the configured Firstmate directory'
     Remove-DotfilesBashHook $hookConfig
     Assert-Test ((Get-Content -LiteralPath $hookProfile -Raw) -notmatch 'dotfiles managed Git Bash hook') 'PowerShell Git Bash hook removal removes only the managed block'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $hookHome '.bash_profile') -Raw) -match '# user profile') 'PowerShell Git Bash hook removal preserves unmanaged profile content'
@@ -602,6 +617,7 @@ Write-Output "result=$result action=$($plan[0].Action)"
     Assert-Test ((@($zshStartupContent -split "`r?`n" | Where-Object { $_ -eq '# >>> dotfiles managed MSYS2 zsh startup >>>' }).Count) -eq 1) 'MSYS2 zsh startup installation is idempotent'
     Assert-Test ($zshStartupContent -match '\. "\$DOTFILES_ROOT/home/\.zshrc"') 'MSYS2 zsh startup sources the tracked zsh configuration'
     Assert-Test ($zshStartupContent -match 'DOTFILES_ZSH_ACTIVE') 'MSYS2 zsh startup exports the PowerShell recursion guard'
+    Assert-Test ($zshStartupContent -match 'DOTFILES_FIRSTMATE_DIR') 'MSYS2 zsh startup exports the Firstmate directory'
     Remove-DotfilesZshStartup $discoveredMsys2Root
     Assert-Test ((Get-Content -LiteralPath $zshStartup -Raw) -notmatch 'dotfiles managed MSYS2 zsh startup') 'MSYS2 zsh startup removal removes only the managed block'
     $pluginFixture = Join-Path $msys2Root 'usr/share/zsh/plugins'
@@ -613,6 +629,72 @@ Write-Output "result=$result action=$($plan[0].Action)"
     Assert-Test (-not (Test-Path -LiteralPath (Join-Path $pluginFixture 'zsh-autosuggestions'))) 'MSYS2 plugin removal removes zsh-autosuggestions'
     Assert-Test (-not (Test-Path -LiteralPath (Join-Path $pluginFixture 'zsh-syntax-highlighting'))) 'MSYS2 plugin removal removes zsh-syntax-highlighting'
     Pass-Test 'MSYS2 discovery and zsh startup are repeatable and removable'
+
+    $firstmateConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $firstmateConfig | Out-Null
+    $firstmateConfig.DOTFILES_WINDOWS_HOME = Join-Path $testRoot 'firstmate-profile'
+    $firstmateConfig.DOTFILES_FIRSTMATE_DIR = Join-Path $testRoot 'firstmate-home'
+    $firstmateConfig.DOTFILES_FIRSTMATE_HARNESS = 'opencode'
+    $fakeBashPath = Join-Path $testRoot 'fake tools/git bash.exe'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $fakeBashPath) -Force | Out-Null
+    Set-Content -LiteralPath $fakeBashPath -Value 'fixture' -NoNewline
+    $firstmateLaunchers = New-DotfilesFirstmateLaunchers $firstmateConfig $fakeBashPath
+    New-DotfilesFirstmateLaunchers $firstmateConfig $fakeBashPath | Out-Null
+    $firstmateBashContent = Get-Content -LiteralPath $firstmateLaunchers.BashLauncher -Raw
+    $firstmateCmdContent = Get-Content -LiteralPath $firstmateLaunchers.PowerShellLauncher -Raw
+    Assert-Test ($firstmateBashContent -match 'FM_HOME="\$firstmate_home"') 'Firstmate Bash launcher exports FM_HOME'
+    Assert-Test ($firstmateBashContent -match 'FM_ROOT_OVERRIDE="\$firstmate_home"') 'Firstmate Bash launcher pins the repository root'
+    Assert-Test ($firstmateBashContent -match 'exec "\$harness" "\$@"') 'Firstmate Bash launcher forwards harness arguments'
+    Assert-Test ($firstmateCmdContent -match '--login') 'Firstmate PowerShell launcher uses Git Bash login mode'
+    Assert-Test ($firstmateCmdContent -match 'fake tools') 'Firstmate PowerShell launcher quotes Git Bash paths'
+    Assert-Test ($firstmateCmdContent -match 'firstmate') 'Firstmate PowerShell launcher invokes the shared Bash launcher'
+    Pass-Test 'Firstmate launchers are generated idempotently for Bash, zsh, and PowerShell'
+
+    $e2eGitBash = Get-DotfilesGitBashPath
+    if ($e2eGitBash) {
+        $e2eHome = Join-Path $testRoot 'firstmate-e2e-home'
+        $e2eProfile = Join-Path $testRoot 'firstmate-e2e-profile'
+        $e2eHarness = Join-Path $testRoot 'firstmate-e2e-harness'
+        $e2eLog = Join-Path $testRoot 'firstmate-e2e.log'
+        New-Item -ItemType Directory -Path $e2eHome -Force | Out-Null
+        Set-Content -LiteralPath $e2eHarness -Encoding ASCII -Value @'
+#!/usr/bin/env bash
+printf 'FM_HOME=%s\n' "$FM_HOME" > "$FM_TEST_LOG"
+printf 'FM_ROOT_OVERRIDE=%s\n' "$FM_ROOT_OVERRIDE" >> "$FM_TEST_LOG"
+printf 'ARGS=%s\n' "$*" >> "$FM_TEST_LOG"
+exit 0
+'@
+        $e2eHarnessBash = ConvertTo-GitBashPath ([System.IO.Path]::GetFullPath($e2eHarness))
+        & $e2eGitBash '--login' '-c' ("chmod +x '" + $e2eHarnessBash + "'")
+        Assert-Test ($LASTEXITCODE -eq 0) 'Firstmate end-to-end harness fixture is executable in Git Bash'
+        $e2eConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+        Initialize-DotfilesConfigDefaults $e2eConfig | Out-Null
+        $e2eConfig.DOTFILES_WINDOWS_HOME = $e2eProfile
+        $e2eConfig.DOTFILES_FIRSTMATE_DIR = $e2eHome
+        $e2eConfig.DOTFILES_FIRSTMATE_HARNESS = $e2eHarnessBash
+        $e2eLaunchers = New-DotfilesFirstmateLaunchers $e2eConfig $e2eGitBash
+        $previousE2eLog = [Environment]::GetEnvironmentVariable('FM_TEST_LOG', 'Process')
+        $env:FM_TEST_LOG = ConvertTo-GitBashPath ([System.IO.Path]::GetFullPath($e2eLog))
+        try {
+            $e2eOutput = & $e2eLaunchers.PowerShellLauncher '--probe' 'two words' 2>&1 | Out-String
+            $e2eExitCode = $LASTEXITCODE
+            if (-not (Test-Path -LiteralPath $e2eLog -PathType Leaf)) {
+                throw "Firstmate PowerShell launcher produced no harness log. Output: $($e2eOutput.Trim())"
+            }
+            $e2eLogLines = @(Get-Content -LiteralPath $e2eLog)
+            $expectedE2eHome = ConvertTo-GitBashPath ([System.IO.Path]::GetFullPath($e2eHome))
+            Assert-Test ($e2eExitCode -eq 0) 'PowerShell Firstmate launcher exits through Git Bash successfully'
+            Assert-Test ($e2eLogLines -contains "FM_HOME=$expectedE2eHome") 'PowerShell Firstmate launcher exports the Firstmate home'
+            Assert-Test ($e2eLogLines -contains "FM_ROOT_OVERRIDE=$expectedE2eHome") 'PowerShell Firstmate launcher exports the Firstmate root override'
+            Assert-Test (($e2eLogLines -contains 'ARGS=--probe two words')) 'PowerShell Firstmate launcher forwards arguments through Git Bash'
+            Pass-Test 'PowerShell Firstmate launcher runs the Bash launcher end to end'
+        } finally {
+            if ($null -eq $previousE2eLog) { Remove-Item Env:FM_TEST_LOG -ErrorAction SilentlyContinue } else { $env:FM_TEST_LOG = $previousE2eLog }
+        }
+    } else {
+        Write-Host 'skip: Git Bash not found for the Firstmate PowerShell launcher check'
+    }
+
     $zshrcContent = Get-Content -LiteralPath (Join-Path $root 'home/.zshrc') -Raw
     Assert-Test ($zshrcContent -match 'zsh-autosuggestions') 'zsh configuration loads zsh-autosuggestions'
     Assert-Test ($zshrcContent -match 'zsh-syntax-highlighting') 'zsh configuration loads zsh-syntax-highlighting'
@@ -620,6 +702,7 @@ Write-Output "result=$result action=$($plan[0].Action)"
     Assert-Test ($zshrcContent -match 'eval "\$\(starship init zsh\)"') 'zsh configuration falls back to Starship'
     Assert-Test ($zshrcContent -match 'oh-my-posh init zsh') 'zsh configuration initializes Oh My Posh'
     Assert-Test ($zshrcContent -match 'DOTFILES_INSTALL_OH_MY_POSH') 'zsh configuration honors the Oh My Posh opt-in'
+    Assert-Test ($zshrcContent -match 'DOTFILES_FIRSTMATE_LAUNCHER') 'zsh configuration exposes the Firstmate launcher function'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-msys2.ps1') -Raw) -match 'github.com/zsh-users/zsh-autosuggestions.git') 'MSYS2 setup installs the zsh-autosuggestions plugin from its repository'
     Assert-Test ((Get-Content -LiteralPath (Join-Path $root 'scripts/windows-msys2.ps1') -Raw) -match 'github.com/zsh-users/zsh-syntax-highlighting.git') 'MSYS2 setup installs the zsh-syntax-highlighting plugin from its repository'
     $profilePath = Join-Path $root 'home/.config/powershell/Microsoft.PowerShell_profile.ps1'

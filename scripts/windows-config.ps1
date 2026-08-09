@@ -22,6 +22,9 @@ $script:DotfilesConfigKeys = @(
     'DOTFILES_INSTALL_NO_MISTAKES',
     'DOTFILES_INSTALL_GNHF',
     'DOTFILES_INSTALL_TREEHOUSE',
+    'DOTFILES_INSTALL_FIRSTMATE',
+    'DOTFILES_FIRSTMATE_DIR',
+    'DOTFILES_FIRSTMATE_HARNESS',
     'DOTFILES_INSTALL_ZSH',
     'DOTFILES_INSTALL_OH_MY_POSH',
     'DOTFILES_COLOR_THEME',
@@ -164,7 +167,10 @@ function Initialize-DotfilesConfigDefaults {
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_NO_MISTAKES' '1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_GNHF' '1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_TREEHOUSE' '1'
-    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '0'
+    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_FIRSTMATE' '0'
+    Set-DotfilesDefault $Config 'DOTFILES_FIRSTMATE_DIR' (Join-DotfilesConfigPath $Config.DOTFILES_WINDOWS_HOME '.firstmate')
+    Set-DotfilesDefault $Config 'DOTFILES_FIRSTMATE_HARNESS' 'opencode'
+    Set-DotfilesDefault $Config 'DOTFILES_INSTALL_ZSH' '1'
     Set-DotfilesDefault $Config 'DOTFILES_INSTALL_OH_MY_POSH' '0'
     $seededColorTheme = $null
     if (([string] $Config['DOTFILES_OH_MY_POSH_THEME']) -eq 'rose-pine-moon') {
@@ -398,7 +404,7 @@ function Assert-DotfilesConfig {
 
     $booleanKeys = @(
         'DOTFILES_INSTALL_SCOOP', 'DOTFILES_UPDATE_SCOOP', 'DOTFILES_INSTALL_PSMUX', 'DOTFILES_INSTALL_GH_AXI', 'DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI', 'DOTFILES_INSTALL_LAVISH_AXI', 'DOTFILES_INSTALL_NO_MISTAKES', 'DOTFILES_INSTALL_GNHF', 'DOTFILES_INSTALL_TREEHOUSE',
-        'DOTFILES_INSTALL_ZSH', 'DOTFILES_INSTALL_OH_MY_POSH', 'DOTFILES_INSTALL_HERDR',
+        'DOTFILES_INSTALL_FIRSTMATE', 'DOTFILES_INSTALL_ZSH', 'DOTFILES_INSTALL_OH_MY_POSH', 'DOTFILES_INSTALL_HERDR',
         'DOTFILES_INSTALL_AGENT_CLIS', 'DOTFILES_BACKUP_EXISTING', 'DOTFILES_INSTALL_BASH_HOOK',
         'DOTFILES_APPLY_WINDOWS_SETTINGS', 'DOTFILES_DARK_MODE', 'DOTFILES_SHOW_FILE_EXTENSIONS',
         'DOTFILES_SHOW_HIDDEN_FILES', 'DOTFILES_HIDE_DESKTOP_ICONS', 'DOTFILES_TASKBAR_AUTO_HIDE',
@@ -408,6 +414,12 @@ function Assert-DotfilesConfig {
         if ([string] $Config[$key] -notmatch '^[01]$') {
             throw "$key must be 0 or 1."
         }
+    }
+    if ([string] $Config.DOTFILES_FIRSTMATE_DIR -notmatch '\S') {
+        throw 'DOTFILES_FIRSTMATE_DIR must not be empty.'
+    }
+    if ([string] $Config.DOTFILES_FIRSTMATE_HARNESS -notmatch '^[A-Za-z0-9._+/-]+$') {
+        throw 'DOTFILES_FIRSTMATE_HARNESS must be a command name available on PATH.'
     }
     if ([string] $Config.DOTFILES_KEYBOARD_DELAY -notmatch '^[0-3]$') {
         throw 'DOTFILES_KEYBOARD_DELAY must be an integer from 0 to 3.'

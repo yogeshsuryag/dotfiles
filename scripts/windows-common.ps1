@@ -17,6 +17,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'windows-theme.ps1')
 . (Join-Path $PSScriptRoot 'windows-terminal.ps1')
 . (Join-Path $PSScriptRoot 'windows-installers.ps1')
+. (Join-Path $PSScriptRoot 'windows-firstmate.ps1')
 . (Join-Path $PSScriptRoot 'windows-hooks.ps1')
 . (Join-Path $PSScriptRoot 'windows-apply.ps1')
 . (Join-Path $PSScriptRoot 'windows-config-tui.ps1')

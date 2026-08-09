@@ -10,6 +10,14 @@ export DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 export EDITOR="${DOTFILES_EDITOR:-nvim}"
 export VISUAL="${DOTFILES_VISUAL:-$EDITOR}"
 export PI_CODING_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+
+if [[ "${DOTFILES_INSTALL_FIRSTMATE:-0}" == "1" ]] && [[ -n "${DOTFILES_FIRSTMATE_DIR:-}" ]] && [[ -f "${DOTFILES_FIRSTMATE_LAUNCHER:-}" ]]; then
+  export PATH="$DOTFILES_FIRSTMATE_DIR/bin:$PATH"
+  firstmate() {
+    bash "$DOTFILES_FIRSTMATE_LAUNCHER" "$@"
+  }
+fi
+
 export STARSHIP_CONFIG="${STARSHIP_CONFIG:-$DOTFILES_ROOT/home/.config/starship.toml}"
 
 if command -v starship >/dev/null 2>&1; then

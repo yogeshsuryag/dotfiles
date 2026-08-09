@@ -27,7 +27,8 @@ Running the bootstrap installs and configures:
 - no-mistakes, which checks code with AI before pushing, fixes safe issues, and creates clean PRs without interrupting your work
 - gnhf, which lets AI agents make small committed improvements autonomously while you sleep and keeps a full activity log
 - Treehouse, which gives each AI agent its own reusable, isolated worktree while preserving dependencies and build caches
-- Optional MSYS2 zsh with zsh-autosuggestions and zsh-syntax-highlighting, launched from the MSYS2 shell or its Windows Terminal profile
+- Optional Firstmate checkout with a global `firstmate` launcher. Firstmate runs an existing agent harness from Git Bash and keeps its operational home under `%USERPROFILE%\.firstmate`
+- MSYS2 zsh with zsh-autosuggestions and zsh-syntax-highlighting, launched from the MSYS2 shell or its Windows Terminal profile
 - Optional Oh My Posh prompt in Tokyo Night or Rose Pine Moon colors for zsh
 - Herdr's Windows beta installer, unless disabled in the local config
 - Claude, Codex, opencode, and Pi configuration files
@@ -93,10 +94,11 @@ The bootstrap script is idempotent and will:
 5. Install the selected global agent skills with noninteractive `npx --yes skills add ... -g -y` commands, including GitHub AXI, Chrome DevTools AXI, and Lavish AXI when enabled, then install no-mistakes and Treehouse with their user-scoped PowerShell installers and gnhf with `npm install -g gnhf` when enabled.
 6. Install Herdr's Windows beta through its official installer when enabled.
 7. Install MSYS2 through Scoop (or WinGet in WinGet mode), its zsh package through pacman, and the autocomplete plugins from their official repositories when `DOTFILES_INSTALL_ZSH=1`.
-8. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
-9. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
-10. Merge the tracked styling for the chosen color theme into the Windows Terminal settings, backing up the original file once, and add the managed `zsh (MSYS2)` profile when zsh is enabled.
-11. Apply only the Windows registry settings explicitly enabled in the config.
+8. Clone Firstmate to `DOTFILES_FIRSTMATE_DIR` when enabled, generate the Bash/zsh launcher and the PowerShell-to-Git-Bash bridge, and add their user-scoped paths to PATH.
+9. Add managed shell startup blocks and a source block to `~/.bashrc` and `~/.bash_profile`.
+10. Link the shared PowerShell profile into Windows PowerShell 5.1 and PowerShell 7, create the Windows application links, and preserve existing targets as backups.
+11. Merge the tracked styling for the chosen color theme into the Windows Terminal settings, backing up the original file once, and add the managed `zsh (MSYS2)` profile when zsh is enabled.
+12. Apply only the Windows registry settings explicitly enabled in the config.
 
 Validate configuration without installing or changing anything:
 
@@ -117,12 +119,13 @@ Edit files under `home/` directly, then re-apply links and optional settings:
 ```
 
 Restart Git Bash after the first bootstrap so the managed shell hook is loaded.
-Restart PowerShell after bootstrap so the PowerShell 7 profile and the Starship
-prompt are picked up. Git Bash remains available independently.
+Restart PowerShell after bootstrap so the PowerShell 7 profile, the `firstmate`
+command, and the Starship prompt are picked up. Git Bash remains available
+independently.
 
 The PowerShell profile is intentionally minimal: it initializes the Starship
 prompt and nothing else, so native PowerShell stays the shell and behaves
-predictably. If you enabled `DOTFILES_INSTALL_ZSH`, launch the MSYS2 zsh shell
+predictably. When `DOTFILES_INSTALL_ZSH=1`, launch the MSYS2 zsh shell
 from the MSYS2 entry in the Windows Start menu or from the `zsh (MSYS2)` profile
 in Windows Terminal; zsh runs with the full Windows
 PATH, so tools installed for Windows (such as `herdr`, `pwsh`, and `nvim`) work
@@ -169,9 +172,12 @@ The most useful values are:
 - `DOTFILES_INSTALL_NO_MISTAKES` - install no-mistakes into the current user's LocalAppData without elevation
 - `DOTFILES_INSTALL_GNHF` - install gnhf globally with npm; requires Node.js 20 or newer
 - `DOTFILES_INSTALL_TREEHOUSE` - install Treehouse into the current user's LocalAppData without elevation
+- `DOTFILES_INSTALL_FIRSTMATE` - clone Firstmate and generate the global Bash/zsh and PowerShell launchers; disabled by default because it uses an existing harness
+- `DOTFILES_FIRSTMATE_DIR` - Firstmate checkout and operational home (default `%USERPROFILE%\.firstmate`)
+- `DOTFILES_FIRSTMATE_HARNESS` - harness command Firstmate launches from the checkout (default `opencode`; the command must be available on PATH)
 - `DOTFILES_INSTALL_HERDR` - enable or disable the Herdr Windows installer
 - `DOTFILES_INSTALL_AGENT_CLIS` - opt in to npm installation of agent CLIs
-- `DOTFILES_INSTALL_ZSH` - install MSYS2 and pacman zsh with the autocomplete plugins, launched on demand from the MSYS2 shell
+- `DOTFILES_INSTALL_ZSH` - install MSYS2 and pacman zsh with the autocomplete plugins; enabled by default and launched from the MSYS2 shell or Windows Terminal
 - `DOTFILES_INSTALL_OH_MY_POSH` - opt in to the Oh My Posh prompt in zsh (installable through the setup UI)
 - `DOTFILES_COLOR_THEME` - choose `tokyo-night` (default) or `rose-pine-moon`; the choice is shared by Windows Terminal, Neovim, Herdr, zsh, and the prompt, and overrides `DOTFILES_OH_MY_POSH_THEME`
 - `DOTFILES_OH_MY_POSH_THEME` - the Oh My Posh theme (`tokyo-night-storm` or `rose-pine-moon`); derived from `DOTFILES_COLOR_THEME` when not set
@@ -244,7 +250,7 @@ restores that backup. When zsh is enabled, the merge also adds a managed
 `zsh (MSYS2)` profile (named, iconed, and pointed at the MSYS2 launcher) that
 uninstall removes again.
 
-If you opt into MSYS2 zsh, the setup installs zsh through pacman and clones
+MSYS2 zsh is enabled by default. The setup installs zsh through pacman and clones
 `zsh-autosuggestions` and `zsh-syntax-highlighting` from their official
 repositories next to zsh, and `.zshrc` enables their plugins plus the fzf key
 bindings (Ctrl+R searches history, Ctrl+T picks files, Alt+C jumps to a
@@ -252,6 +258,14 @@ directory), all tinted to the selected theme. Selecting Oh My Posh in the setup
 UI (or setting `DOTFILES_INSTALL_OH_MY_POSH=1`) installs it and applies the
 matching Tokyo Night or Rose Pine Moon theme in zsh. Without it, Starship
 remains the prompt everywhere.
+
+When Firstmate is enabled, use `firstmate` from PowerShell, Git Bash, or zsh.
+The PowerShell command is a generated `.cmd` bridge that invokes the same
+Firstmate Bash launcher through Git Bash; PowerShell never executes the
+upstream `.sh` files directly. The default harness is `opencode`, and the
+launcher exports the operational home and repository-root overrides to the
+checkout before starting it. Firstmate officially targets macOS and Linux, so
+the Windows integration uses Git Bash and MSYS2 as its compatibility layer.
 
 ## Testing
 
@@ -262,7 +276,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\windows.test.ps1
 ```
 
 It covers the configuration round-trip, WinGet install arguments, links,
-hooks, MSYS2/zsh, prompts, the Windows Terminal settings merge, and the Node
+hooks, Firstmate launchers, MSYS2/zsh, prompts, the Windows Terminal settings merge, and the Node
 configuration helpers, and targets Windows PowerShell 5.1 (no PowerShell 7-only
 syntax), so it can also be run with `pwsh`.
 

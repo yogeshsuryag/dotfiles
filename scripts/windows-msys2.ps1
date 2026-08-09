@@ -131,9 +131,15 @@ function Install-DotfilesZshStartup {
     $end = '# <<< dotfiles managed MSYS2 zsh startup <<<'
     $clean = Remove-DotfilesManagedBlock $content $start $end
     $dotfilesLink = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_DOTFILES_LINK))
+    $firstmateDir = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_FIRSTMATE_DIR))
+    $firstmateLauncher = ConvertTo-GitBashPath (Join-Path (ConvertTo-NativePath ([string] $Config.DOTFILES_WINDOWS_HOME)) 'bin/firstmate')
     $piAgentDir = ConvertTo-GitBashPath (ConvertTo-NativePath ([string] $Config.DOTFILES_PI_AGENT_DIR))
     $sourceLine = 'export DOTFILES_ROOT="' + (ConvertTo-BashDoubleQuoted $dotfilesLink) +
-        '" DOTFILES_ZSH_ACTIVE="1" DOTFILES_INSTALL_ZSH="1" DOTFILES_INSTALL_OH_MY_POSH="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH)) +
+        '" DOTFILES_ZSH_ACTIVE="1" DOTFILES_INSTALL_ZSH="1" DOTFILES_INSTALL_FIRSTMATE="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_FIRSTMATE)) +
+        '" DOTFILES_FIRSTMATE_DIR="' + (ConvertTo-BashDoubleQuoted $firstmateDir) +
+        '" DOTFILES_FIRSTMATE_HARNESS="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_FIRSTMATE_HARNESS)) +
+        '" DOTFILES_FIRSTMATE_LAUNCHER="' + (ConvertTo-BashDoubleQuoted $firstmateLauncher) +
+        '" DOTFILES_INSTALL_OH_MY_POSH="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_INSTALL_OH_MY_POSH)) +
         '" DOTFILES_COLOR_THEME="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_COLOR_THEME)) +
         '" DOTFILES_OH_MY_POSH_THEME="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_OH_MY_POSH_THEME)) +
         '" DOTFILES_EDITOR="' + (ConvertTo-BashDoubleQuoted ([string] $Config.DOTFILES_EDITOR)) +
