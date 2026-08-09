@@ -117,6 +117,7 @@ try {
     Assert-Test ([string] $config.DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI -eq '1') 'Chrome DevTools AXI is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_LAVISH_AXI -eq '1') 'Lavish AXI is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_NO_MISTAKES -eq '1') 'no-mistakes is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_GNHF -eq '1') 'gnhf is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
     Assert-Test ([string] $config.DOTFILES_COLOR_THEME -eq 'tokyo-night') 'tokyo-night is the default color theme'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the derived prompt theme'
@@ -191,11 +192,14 @@ try {
         Assert-Test ($stateConfig[$skillKey] -eq '1') "PowerShell TUI toggles $skillKey back on"
     }
     $noMistakesItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_NO_MISTAKES' })[0]
+    $gnhfItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_GNHF' })[0]
     $lavishPosition = -1
     $noMistakesPosition = -1
+    $gnhfPosition = -1
     for ($itemIndex = 0; $itemIndex -lt $state.Items.Count; $itemIndex++) {
         if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_LAVISH_AXI') { $lavishPosition = $itemIndex }
         if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_NO_MISTAKES') { $noMistakesPosition = $itemIndex }
+        if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_GNHF') { $gnhfPosition = $itemIndex }
     }
     Assert-Test ($noMistakesItem.Kind -eq 'toggle') 'PowerShell TUI exposes the no-mistakes choice'
     Assert-Test ($noMistakesItem.Description.Contains('irm https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.ps1 | iex')) 'PowerShell TUI shows the no-mistakes install command'
@@ -205,6 +209,14 @@ try {
     Assert-Test ($stateConfig.DOTFILES_INSTALL_NO_MISTAKES -eq '0') 'PowerShell TUI toggles no-mistakes off'
     Toggle-DotfilesTuiItem $state $noMistakesItem
     Assert-Test ($stateConfig.DOTFILES_INSTALL_NO_MISTAKES -eq '1') 'PowerShell TUI toggles no-mistakes back on'
+    Assert-Test ($gnhfItem.Kind -eq 'toggle') 'PowerShell TUI exposes the gnhf choice'
+    Assert-Test ($gnhfItem.Description.Contains('npm install -g gnhf')) 'PowerShell TUI shows the gnhf install command'
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_GNHF -eq '1') 'PowerShell TUI initializes gnhf as enabled'
+    Assert-Test ($gnhfPosition -eq ($noMistakesPosition + 1)) 'PowerShell TUI places gnhf after no-mistakes'
+    Toggle-DotfilesTuiItem $state $gnhfItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_GNHF -eq '0') 'PowerShell TUI toggles gnhf off'
+    Toggle-DotfilesTuiItem $state $gnhfItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_GNHF -eq '1') 'PowerShell TUI toggles gnhf back on'
     $state.Page = 5
     Set-DotfilesTuiItems $state
     $settingsItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_APPLY_WINDOWS_SETTINGS' })[0]
@@ -323,6 +335,46 @@ exit /b 0
         Pass-Test 'no-mistakes installation stays user-scoped and idempotent'
     } finally {
         if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
+    }
+
+    $gnhfFakeBin = Join-Path $testRoot 'fake-gnhf-bin'
+    New-Item -ItemType Directory -Path $gnhfFakeBin -Force | Out-Null
+    $gnhfLog = Join-Path $testRoot 'fake-gnhf.log'
+    Set-Content -LiteralPath (Join-Path $gnhfFakeBin 'node.cmd') -Encoding ASCII -Value @'
+@echo off
+if "%1"=="--version" echo v20.0.0
+exit /b 0
+'@
+    Set-Content -LiteralPath (Join-Path $gnhfFakeBin 'npm.cmd') -Encoding ASCII -Value @'
+@echo off
+echo %*>>"%GNHF_TEST_LOG%"
+exit /b 0
+'@
+    $previousPath = $env:PATH
+    $previousGnhfLog = [Environment]::GetEnvironmentVariable('GNHF_TEST_LOG', 'Process')
+    $env:PATH = $gnhfFakeBin
+    $env:GNHF_TEST_LOG = $gnhfLog
+    try {
+        $gnhfConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+        Initialize-DotfilesConfigDefaults $gnhfConfig | Out-Null
+        Install-DotfilesGnhf $gnhfConfig
+        $gnhfCommands = @(Get-Content -LiteralPath $gnhfLog)
+        Assert-Test ($gnhfCommands.Count -eq 1 -and $gnhfCommands[0] -eq 'install -g gnhf') 'gnhf uses the requested global npm command'
+        Set-Content -LiteralPath (Join-Path $gnhfFakeBin 'node.cmd') -Encoding ASCII -Value @'
+@echo off
+if "%1"=="--version" echo v18.20.0
+exit /b 0
+'@
+        $oldNodeThrew = $false
+        try { Install-DotfilesGnhf $gnhfConfig } catch { $oldNodeThrew = $true }
+        Assert-Test $oldNodeThrew 'gnhf rejects Node.js versions older than 20'
+        $gnhfConfig.DOTFILES_INSTALL_GNHF = '0'
+        Install-DotfilesGnhf $gnhfConfig
+        Assert-Test (@(Get-Content -LiteralPath $gnhfLog).Count -eq 1) 'disabled gnhf installation does not invoke npm'
+        Pass-Test 'gnhf installation validates Node.js and uses npm globally'
+    } finally {
+        $env:PATH = $previousPath
+        if ($null -eq $previousGnhfLog) { Remove-Item Env:GNHF_TEST_LOG -ErrorAction SilentlyContinue } else { $env:GNHF_TEST_LOG = $previousGnhfLog }
     }
 
     $psmuxPlanConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')

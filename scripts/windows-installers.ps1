@@ -111,3 +111,37 @@ function Install-DotfilesNoMistakes {
         }
     }
 }
+
+function Install-DotfilesGnhf {
+    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+
+    if ([string] $Config.DOTFILES_INSTALL_GNHF -ne '1') {
+        return
+    }
+    if ($null -ne (Get-Command gnhf -ErrorAction SilentlyContinue)) {
+        return
+    }
+
+    $npmCommand = Get-Command npm -ErrorAction SilentlyContinue
+    if ($null -eq $npmCommand) {
+        throw 'gnhf requested, but npm is unavailable. Select the Node.js LTS package in the setup UI, or install Node.js and rerun the bootstrap.'
+    }
+    $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+    if ($null -eq $nodeCommand) {
+        throw 'gnhf requires Node.js 20 or newer, but node is unavailable. Select the Node.js LTS package in the setup UI, then rerun the bootstrap.'
+    }
+
+    $nodeVersionOutput = @(& $nodeCommand.Source '--version' 2>$null)
+    $nodeVersion = if ($nodeVersionOutput.Count -gt 0) { ([string] $nodeVersionOutput[0]).Trim() } else { '' }
+    $nodeVersionMatch = [regex]::Match($nodeVersion, '^v?(\d+)')
+    if ($LASTEXITCODE -ne 0 -or -not $nodeVersionMatch.Success) {
+        throw 'gnhf requires Node.js 20 or newer, but the installed node version could not be determined.'
+    }
+    $nodeMajor = [int] $nodeVersionMatch.Groups[1].Value
+    if ($nodeMajor -lt 20) {
+        throw "gnhf requires Node.js 20 or newer, but $nodeVersion is installed. Select the Node.js LTS package and rerun the bootstrap."
+    }
+
+    Write-Host '==> Installing gnhf globally with npm'
+    Invoke-DotfilesCommand 'npm' @('install', '-g', 'gnhf')
+}

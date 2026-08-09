@@ -53,6 +53,7 @@ try {
     Invoke-DotfilesPackagePlan $config $plan
     Install-DotfilesAgenticSkills $config
     Install-DotfilesNoMistakes $config
+    Install-DotfilesGnhf $config
     Install-DotfilesHerdr $config
     Install-DotfilesZsh $config
 
