@@ -25,6 +25,7 @@ $script:DotfilesAgenticSkills = @(
     }
 )
 $script:DotfilesNoMistakesInstallUrl = 'https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.ps1'
+$script:DotfilesTreehouseInstallUrl = 'https://kunchenguid.github.io/treehouse/install.ps1'
 
 function Install-DotfilesHerdr {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
@@ -144,4 +145,44 @@ function Install-DotfilesGnhf {
 
     Write-Host '==> Installing gnhf globally with npm'
     Invoke-DotfilesCommand 'npm' @('install', '-g', 'gnhf')
+}
+
+function Install-DotfilesTreehouse {
+    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+
+    if ([string] $Config.DOTFILES_INSTALL_TREEHOUSE -ne '1') {
+        return
+    }
+
+    $hasLocalAppDataVariable = -not [string]::IsNullOrWhiteSpace([string] $env:LOCALAPPDATA)
+    $localAppData = if (-not $hasLocalAppDataVariable) {
+        [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+    } else {
+        [string] $env:LOCALAPPDATA
+    }
+    if ([string]::IsNullOrWhiteSpace($localAppData)) {
+        throw 'Treehouse requested, but Windows did not provide a user-local application data directory.'
+    }
+
+    $installPath = Join-Path (Join-Path $localAppData 'treehouse') 'treehouse.exe'
+    $command = Get-Command treehouse -ErrorAction SilentlyContinue
+    if ((Test-Path -LiteralPath $installPath -PathType Leaf) -or $null -ne $command) {
+        return
+    }
+
+    Write-Host '==> Installing Treehouse for the current user'
+    if (-not $hasLocalAppDataVariable) {
+        $env:LOCALAPPDATA = $localAppData
+    }
+    try {
+        $installer = Invoke-RestMethod -Uri $script:DotfilesTreehouseInstallUrl
+        if ([string]::IsNullOrWhiteSpace([string] $installer)) {
+            throw 'Treehouse installer returned an empty response.'
+        }
+        Invoke-Expression ([string] $installer)
+    } finally {
+        if (-not $hasLocalAppDataVariable) {
+            Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue
+        }
+    }
 }

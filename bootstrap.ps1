@@ -54,6 +54,7 @@ try {
     Install-DotfilesAgenticSkills $config
     Install-DotfilesNoMistakes $config
     Install-DotfilesGnhf $config
+    Install-DotfilesTreehouse $config
     Install-DotfilesHerdr $config
     Install-DotfilesZsh $config
 

@@ -118,6 +118,7 @@ try {
     Assert-Test ([string] $config.DOTFILES_INSTALL_LAVISH_AXI -eq '1') 'Lavish AXI is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_NO_MISTAKES -eq '1') 'no-mistakes is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_GNHF -eq '1') 'gnhf is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_TREEHOUSE -eq '1') 'Treehouse is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
     Assert-Test ([string] $config.DOTFILES_COLOR_THEME -eq 'tokyo-night') 'tokyo-night is the default color theme'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the derived prompt theme'
@@ -193,13 +194,16 @@ try {
     }
     $noMistakesItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_NO_MISTAKES' })[0]
     $gnhfItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_GNHF' })[0]
+    $treehouseItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_TREEHOUSE' })[0]
     $lavishPosition = -1
     $noMistakesPosition = -1
     $gnhfPosition = -1
+    $treehousePosition = -1
     for ($itemIndex = 0; $itemIndex -lt $state.Items.Count; $itemIndex++) {
         if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_LAVISH_AXI') { $lavishPosition = $itemIndex }
         if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_NO_MISTAKES') { $noMistakesPosition = $itemIndex }
         if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_GNHF') { $gnhfPosition = $itemIndex }
+        if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_TREEHOUSE') { $treehousePosition = $itemIndex }
     }
     Assert-Test ($noMistakesItem.Kind -eq 'toggle') 'PowerShell TUI exposes the no-mistakes choice'
     Assert-Test ($noMistakesItem.Description.Contains('irm https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.ps1 | iex')) 'PowerShell TUI shows the no-mistakes install command'
@@ -217,6 +221,15 @@ try {
     Assert-Test ($stateConfig.DOTFILES_INSTALL_GNHF -eq '0') 'PowerShell TUI toggles gnhf off'
     Toggle-DotfilesTuiItem $state $gnhfItem
     Assert-Test ($stateConfig.DOTFILES_INSTALL_GNHF -eq '1') 'PowerShell TUI toggles gnhf back on'
+    Assert-Test ($treehouseItem.Kind -eq 'toggle') 'PowerShell TUI exposes the Treehouse choice'
+    Assert-Test ($treehouseItem.Description.Contains('irm https://kunchenguid.github.io/treehouse/install.ps1 | iex')) 'PowerShell TUI shows the Treehouse install command'
+    Assert-Test ($treehouseItem.Description.Contains('reusable, isolated worktree')) 'PowerShell TUI describes the Treehouse worktree behavior'
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_TREEHOUSE -eq '1') 'PowerShell TUI initializes Treehouse as enabled'
+    Assert-Test ($treehousePosition -eq ($gnhfPosition + 1)) 'PowerShell TUI places Treehouse after gnhf'
+    Toggle-DotfilesTuiItem $state $treehouseItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_TREEHOUSE -eq '0') 'PowerShell TUI toggles Treehouse off'
+    Toggle-DotfilesTuiItem $state $treehouseItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_TREEHOUSE -eq '1') 'PowerShell TUI toggles Treehouse back on'
     $state.Page = 5
     Set-DotfilesTuiItems $state
     $settingsItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_APPLY_WINDOWS_SETTINGS' })[0]
@@ -375,6 +388,28 @@ exit /b 0
     } finally {
         $env:PATH = $previousPath
         if ($null -eq $previousGnhfLog) { Remove-Item Env:GNHF_TEST_LOG -ErrorAction SilentlyContinue } else { $env:GNHF_TEST_LOG = $previousGnhfLog }
+    }
+
+    $treehouseConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $treehouseConfig | Out-Null
+    $treehouseConfig.DOTFILES_INSTALL_TREEHOUSE = '0'
+    Install-DotfilesTreehouse $treehouseConfig
+    Assert-Test ($script:DotfilesTreehouseInstallUrl -eq 'https://kunchenguid.github.io/treehouse/install.ps1') 'Treehouse uses the requested installer URL'
+    Pass-Test 'disabled Treehouse installation does not run a remote installer'
+
+    $treehouseLocalAppData = Join-Path $testRoot 'treehouse-local-appdata'
+    $treehouseBinary = Join-Path $treehouseLocalAppData 'treehouse/treehouse.exe'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $treehouseBinary) -Force | Out-Null
+    Set-Content -LiteralPath $treehouseBinary -Value 'fixture' -NoNewline
+    $previousLocalAppData = [Environment]::GetEnvironmentVariable('LOCALAPPDATA', 'Process')
+    $env:LOCALAPPDATA = $treehouseLocalAppData
+    try {
+        $treehouseConfig.DOTFILES_INSTALL_TREEHOUSE = '1'
+        Install-DotfilesTreehouse $treehouseConfig
+        Assert-Test (Test-Path -LiteralPath $treehouseBinary -PathType Leaf) 'Treehouse installer recognizes the user-local binary without elevation'
+        Pass-Test 'Treehouse installation stays user-scoped and idempotent'
+    } finally {
+        if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
     }
 
     $psmuxPlanConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
