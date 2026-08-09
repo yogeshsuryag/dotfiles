@@ -24,6 +24,7 @@ $script:DotfilesAgenticSkills = @(
         Skill = 'lavish'
     }
 )
+$script:DotfilesNoMistakesInstallUrl = 'https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.ps1'
 
 function Install-DotfilesHerdr {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
@@ -68,5 +69,45 @@ function Install-DotfilesAgenticSkills {
     foreach ($skill in $selected) {
         Write-Host "==> Installing $($skill.Name) globally with npx"
         Invoke-DotfilesCommand 'npx' @('--yes', 'skills', 'add', $skill.Source, '--skill', $skill.Skill, '-g', '-y')
+    }
+}
+
+function Install-DotfilesNoMistakes {
+    param([Parameter(Mandatory = $true)] [hashtable] $Config)
+
+    if ([string] $Config.DOTFILES_INSTALL_NO_MISTAKES -ne '1') {
+        return
+    }
+
+    $hasLocalAppDataVariable = -not [string]::IsNullOrWhiteSpace([string] $env:LOCALAPPDATA)
+    $localAppData = if (-not $hasLocalAppDataVariable) {
+        [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+    } else {
+        [string] $env:LOCALAPPDATA
+    }
+    if ([string]::IsNullOrWhiteSpace($localAppData)) {
+        throw 'no-mistakes requested, but Windows did not provide a user-local application data directory.'
+    }
+
+    $installPath = Join-Path (Join-Path $localAppData 'no-mistakes') 'no-mistakes.exe'
+    $command = Get-Command no-mistakes -ErrorAction SilentlyContinue
+    if ((Test-Path -LiteralPath $installPath -PathType Leaf) -or $null -ne $command) {
+        return
+    }
+
+    Write-Host '==> Installing no-mistakes for the current user'
+    if (-not $hasLocalAppDataVariable) {
+        $env:LOCALAPPDATA = $localAppData
+    }
+    try {
+        $installer = Invoke-RestMethod -Uri $script:DotfilesNoMistakesInstallUrl
+        if ([string]::IsNullOrWhiteSpace([string] $installer)) {
+            throw 'no-mistakes installer returned an empty response.'
+        }
+        Invoke-Expression ([string] $installer)
+    } finally {
+        if (-not $hasLocalAppDataVariable) {
+            Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue
+        }
     }
 }

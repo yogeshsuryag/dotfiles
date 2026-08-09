@@ -116,6 +116,7 @@ try {
     Assert-Test ([string] $config.DOTFILES_INSTALL_GH_AXI -eq '1') 'GitHub AXI is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_CHROME_DEVTOOLS_AXI -eq '1') 'Chrome DevTools AXI is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_LAVISH_AXI -eq '1') 'Lavish AXI is enabled by default'
+    Assert-Test ([string] $config.DOTFILES_INSTALL_NO_MISTAKES -eq '1') 'no-mistakes is enabled by default'
     Assert-Test ([string] $config.DOTFILES_INSTALL_ZSH -eq '0') 'MSYS2 zsh is opt-in by default'
     Assert-Test ([string] $config.DOTFILES_COLOR_THEME -eq 'tokyo-night') 'tokyo-night is the default color theme'
     Assert-Test ([string] $config.DOTFILES_OH_MY_POSH_THEME -eq 'tokyo-night-storm') 'tokyo-night-storm is the derived prompt theme'
@@ -189,6 +190,21 @@ try {
         Toggle-DotfilesTuiItem $state $skillItem
         Assert-Test ($stateConfig[$skillKey] -eq '1') "PowerShell TUI toggles $skillKey back on"
     }
+    $noMistakesItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_INSTALL_NO_MISTAKES' })[0]
+    $lavishPosition = -1
+    $noMistakesPosition = -1
+    for ($itemIndex = 0; $itemIndex -lt $state.Items.Count; $itemIndex++) {
+        if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_LAVISH_AXI') { $lavishPosition = $itemIndex }
+        if ($state.Items[$itemIndex].Key -eq 'DOTFILES_INSTALL_NO_MISTAKES') { $noMistakesPosition = $itemIndex }
+    }
+    Assert-Test ($noMistakesItem.Kind -eq 'toggle') 'PowerShell TUI exposes the no-mistakes choice'
+    Assert-Test ($noMistakesItem.Description.Contains('irm https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.ps1 | iex')) 'PowerShell TUI shows the no-mistakes install command'
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_NO_MISTAKES -eq '1') 'PowerShell TUI initializes no-mistakes as enabled'
+    Assert-Test ($noMistakesPosition -eq ($lavishPosition + 1)) 'PowerShell TUI places no-mistakes after the agentic skills'
+    Toggle-DotfilesTuiItem $state $noMistakesItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_NO_MISTAKES -eq '0') 'PowerShell TUI toggles no-mistakes off'
+    Toggle-DotfilesTuiItem $state $noMistakesItem
+    Assert-Test ($stateConfig.DOTFILES_INSTALL_NO_MISTAKES -eq '1') 'PowerShell TUI toggles no-mistakes back on'
     $state.Page = 5
     Set-DotfilesTuiItems $state
     $settingsItem = @($state.Items | Where-Object { $_.Key -eq 'DOTFILES_APPLY_WINDOWS_SETTINGS' })[0]
@@ -286,6 +302,27 @@ exit /b 0
     } finally {
         $env:PATH = $previousPath
         if ($null -eq $previousNpxLog) { Remove-Item Env:NPX_TEST_LOG -ErrorAction SilentlyContinue } else { $env:NPX_TEST_LOG = $previousNpxLog }
+    }
+
+    $noMistakesConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
+    Initialize-DotfilesConfigDefaults $noMistakesConfig | Out-Null
+    $noMistakesConfig.DOTFILES_INSTALL_NO_MISTAKES = '0'
+    Install-DotfilesNoMistakes $noMistakesConfig
+    Pass-Test 'disabled no-mistakes installation does not run a remote installer'
+
+    $noMistakesLocalAppData = Join-Path $testRoot 'no-mistakes-local-appdata'
+    $noMistakesBinary = Join-Path $noMistakesLocalAppData 'no-mistakes/no-mistakes.exe'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $noMistakesBinary) -Force | Out-Null
+    Set-Content -LiteralPath $noMistakesBinary -Value 'fixture' -NoNewline
+    $previousLocalAppData = [Environment]::GetEnvironmentVariable('LOCALAPPDATA', 'Process')
+    $env:LOCALAPPDATA = $noMistakesLocalAppData
+    try {
+        $noMistakesConfig.DOTFILES_INSTALL_NO_MISTAKES = '1'
+        Install-DotfilesNoMistakes $noMistakesConfig
+        Assert-Test (Test-Path -LiteralPath $noMistakesBinary -PathType Leaf) 'no-mistakes installer recognizes the user-local binary without elevation'
+        Pass-Test 'no-mistakes installation stays user-scoped and idempotent'
+    } finally {
+        if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
     }
 
     $psmuxPlanConfig = Read-DotfilesEnvFile (Join-Path $root 'windows-config.example.env')
