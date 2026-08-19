@@ -720,9 +720,12 @@ Write-Output "result=$result action=$($plan[0].Action)"
     if ($e2eGitBash) {
         $e2eHome = Join-Path $testRoot 'firstmate-e2e-home'
         $e2eProfile = Join-Path $testRoot 'firstmate-e2e-profile'
+        $e2eGitBashHome = Join-Path $testRoot 'firstmate-e2e-git-home'
         $e2eHarness = Join-Path $testRoot 'firstmate-e2e-harness'
         $e2eLog = Join-Path $testRoot 'firstmate-e2e.log'
         New-Item -ItemType Directory -Path $e2eHome -Force | Out-Null
+        New-Item -ItemType Directory -Path $e2eGitBashHome -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $e2eGitBashHome '.bash_profile') -Value '# isolated Firstmate E2E profile' -NoNewline
         Set-Content -LiteralPath $e2eHarness -Encoding ASCII -Value @'
 #!/usr/bin/env bash
 printf 'FM_HOME=%s\n' "$FM_HOME" > "$FM_TEST_LOG"
@@ -740,7 +743,9 @@ exit 0
         $e2eConfig.DOTFILES_FIRSTMATE_HARNESS = $e2eHarnessBash
         $e2eLaunchers = New-DotfilesFirstmateLaunchers $e2eConfig $e2eGitBash
         $previousE2eLog = [Environment]::GetEnvironmentVariable('FM_TEST_LOG', 'Process')
+        $previousE2eHome = [Environment]::GetEnvironmentVariable('HOME', 'Process')
         $env:FM_TEST_LOG = ConvertTo-GitBashPath ([System.IO.Path]::GetFullPath($e2eLog))
+        $env:HOME = ConvertTo-GitBashPath ([System.IO.Path]::GetFullPath($e2eGitBashHome))
         try {
             $e2eOutput = & $e2eLaunchers.PowerShellLauncher '--probe' 'two words' 2>&1 | Out-String
             $e2eExitCode = $LASTEXITCODE
@@ -756,6 +761,7 @@ exit 0
             Pass-Test 'PowerShell Firstmate launcher runs the Bash launcher end to end'
         } finally {
             if ($null -eq $previousE2eLog) { Remove-Item Env:FM_TEST_LOG -ErrorAction SilentlyContinue } else { $env:FM_TEST_LOG = $previousE2eLog }
+            if ($null -eq $previousE2eHome) { Remove-Item Env:HOME -ErrorAction SilentlyContinue } else { $env:HOME = $previousE2eHome }
         }
     } else {
         Write-Host 'skip: Git Bash not found for the Firstmate PowerShell launcher check'
