@@ -27,6 +27,46 @@ $script:DotfilesAgenticSkills = @(
 $script:DotfilesNoMistakesInstallUrl = 'https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.ps1'
 $script:DotfilesTreehouseInstallUrl = 'https://kunchenguid.github.io/treehouse/install.ps1'
 
+function Invoke-DotfilesNoMistakesInstaller {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Installer
+    )
+
+    # PowerShell Start-Process -Wait waits for daemon descendants; invoke this
+    # one restart natively so the installer can return after the CLI exits.
+    & {
+        param([Parameter(Mandatory = $true)] [string] $Installer)
+
+        function Start-Process {
+            param(
+                [Parameter(Mandatory = $true)] [string] $FilePath,
+                [string[]] $ArgumentList = @(),
+                [switch] $Wait,
+                [switch] $PassThru,
+                [switch] $NoNewWindow
+            )
+
+            $isNoMistakesDaemonRestart = $Wait -and
+                ([System.IO.Path]::GetFileName($FilePath) -ieq 'no-mistakes.exe') -and
+                (@($ArgumentList).Count -eq 2) -and
+                ([string] $ArgumentList[0] -ieq 'daemon') -and
+                ([string] $ArgumentList[1] -ieq 'restart')
+            if ($isNoMistakesDaemonRestart) {
+                $output = & $FilePath @ArgumentList 2>&1
+                $exitCode = $LASTEXITCODE
+                foreach ($outputLine in @($output)) {
+                    Write-Host ([string] $outputLine)
+                }
+                return [pscustomobject]@{ ExitCode = $exitCode }
+            }
+
+            Microsoft.PowerShell.Management\Start-Process @PSBoundParameters
+        }
+
+        Invoke-Expression $Installer
+    } ([string] $Installer)
+}
+
 function Install-DotfilesHerdr {
     param([Parameter(Mandatory = $true)] [hashtable] $Config)
 
@@ -105,7 +145,7 @@ function Install-DotfilesNoMistakes {
         if ([string]::IsNullOrWhiteSpace([string] $installer)) {
             throw 'no-mistakes installer returned an empty response.'
         }
-        Invoke-Expression ([string] $installer)
+        Invoke-DotfilesNoMistakesInstaller ([string] $installer)
     } finally {
         if (-not $hasLocalAppDataVariable) {
             Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue

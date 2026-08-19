@@ -349,6 +349,72 @@ exit /b 0
     Install-DotfilesNoMistakes $noMistakesConfig
     Pass-Test 'disabled no-mistakes installation does not run a remote installer'
 
+    $previousNoMistakesFunction = Get-Command 'no-mistakes.exe' -CommandType Function -ErrorAction SilentlyContinue
+    $previousInvokeRestMethodFunction = Get-Command Invoke-RestMethod -CommandType Function -ErrorAction SilentlyContinue
+    $previousLastExitCode = $global:LASTEXITCODE
+    $previousLocalAppData = [Environment]::GetEnvironmentVariable('LOCALAPPDATA', 'Process')
+    $previousPath = [Environment]::GetEnvironmentVariable('PATH', 'Process')
+    $script:restartInterceptCount = 0
+    $script:restartInterceptExitCode = 0
+    $script:restartInstallerRequestCount = 0
+    $script:restartInstaller = @'
+$installPath = Join-Path $env:LOCALAPPDATA 'no-mistakes/no-mistakes.exe'
+New-Item -ItemType Directory -Path (Split-Path -Parent $installPath) -Force | Out-Null
+Set-Content -LiteralPath $installPath -Value 'fixture' -NoNewline
+$restart = Start-Process -FilePath 'no-mistakes.exe' -ArgumentList @('daemon', 'restart') -Wait -PassThru -NoNewWindow
+if ($restart.ExitCode -ne 0) { throw 'daemon restart failed' }
+Set-Content -LiteralPath (Join-Path $env:LOCALAPPDATA 'installer-complete') -Value 'complete' -NoNewline
+'@
+    function no-mistakes.exe {
+        param([string[]] $Arguments)
+        $script:restartInterceptCount++
+        $global:LASTEXITCODE = $script:restartInterceptExitCode
+    }
+    function Invoke-RestMethod {
+        param([string] $Uri)
+        $script:restartInstallerRequestCount++
+        return $script:restartInstaller
+    }
+    try {
+        $remoteLocalAppData = Join-Path $testRoot 'no-mistakes-remote-local-appdata'
+        New-Item -ItemType Directory -Path $remoteLocalAppData -Force | Out-Null
+        $env:LOCALAPPDATA = $remoteLocalAppData
+        $env:PATH = $testRoot
+        $noMistakesConfig.DOTFILES_INSTALL_NO_MISTAKES = '1'
+        Install-DotfilesNoMistakes $noMistakesConfig
+        $remoteBinary = Join-Path $remoteLocalAppData 'no-mistakes/no-mistakes.exe'
+        $remoteCompletionMarker = Join-Path $remoteLocalAppData 'installer-complete'
+        Assert-Test ($script:restartInstallerRequestCount -eq 1) 'no-mistakes installation invokes its configured remote installer'
+        Assert-Test (Test-Path -LiteralPath $remoteBinary -PathType Leaf) 'no-mistakes remote installer creates the user-local binary'
+        Assert-Test (Test-Path -LiteralPath $remoteCompletionMarker -PathType Leaf) 'no-mistakes remote installer continues after daemon restart'
+        Assert-Test ($script:restartInterceptCount -eq 1) 'no-mistakes installer invokes daemon restart through native execution'
+        Assert-Test ((Get-Command Start-Process).CommandType -eq 'Cmdlet') 'no-mistakes Start-Process override stays scoped to the installer'
+
+        $script:restartInterceptExitCode = 23
+        $failedLocalAppData = Join-Path $testRoot 'no-mistakes-failed-local-appdata'
+        New-Item -ItemType Directory -Path $failedLocalAppData -Force | Out-Null
+        $env:LOCALAPPDATA = $failedLocalAppData
+        $restartFailed = $false
+        try { Install-DotfilesNoMistakes $noMistakesConfig } catch { $restartFailed = $true }
+        Assert-Test $restartFailed 'no-mistakes installer preserves daemon restart failures'
+        Pass-Test 'no-mistakes installer avoids process-tree waits and preserves restart errors'
+    } finally {
+        if ($null -eq $previousPath) { Remove-Item Env:PATH -ErrorAction SilentlyContinue } else { $env:PATH = $previousPath }
+        if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
+        if ($null -eq $previousNoMistakesFunction) {
+            Remove-Item -LiteralPath Function:\no-mistakes.exe -ErrorAction SilentlyContinue
+        } else {
+            Set-Item -LiteralPath Function:\no-mistakes.exe -Value $previousNoMistakesFunction.ScriptBlock
+        }
+        if ($null -eq $previousInvokeRestMethodFunction) {
+            Remove-Item -LiteralPath Function:\Invoke-RestMethod -ErrorAction SilentlyContinue
+        } else {
+            Set-Item -LiteralPath Function:\Invoke-RestMethod -Value $previousInvokeRestMethodFunction.ScriptBlock
+        }
+        $global:LASTEXITCODE = $previousLastExitCode
+        Remove-Variable -Name restartInterceptCount, restartInterceptExitCode, restartInstallerRequestCount, restartInstaller -Scope Script -ErrorAction SilentlyContinue
+    }
+
     $noMistakesLocalAppData = Join-Path $testRoot 'no-mistakes-local-appdata'
     $noMistakesBinary = Join-Path $noMistakesLocalAppData 'no-mistakes/no-mistakes.exe'
     New-Item -ItemType Directory -Path (Split-Path -Parent $noMistakesBinary) -Force | Out-Null
